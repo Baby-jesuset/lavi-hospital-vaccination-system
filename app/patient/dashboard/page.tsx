@@ -1,16 +1,55 @@
 "use client"
-
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar } from "@/components/ui/calendar"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
-import { CalendarDays, Syringe, Bell, Activity, ChevronRight } from "lucide-react"
-import * as ProgressPrimitive from "@radix-ui/react-progress"
+import { CalendarDays, Syringe, Bell, Activity } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useEffect, useState } from "react"
 
 export default function PatientDashboard() {
-  const [date, setDate] = useState<Date | undefined>(new Date())
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    // Simulate data fetching
+    const fetchDashboardData = async () => {
+      try {
+        // This will be replaced with actual Supabase queries
+        // const { data: patientData, error: patientError } = await supabase
+        //   .from('patients')
+        //   .select('*')
+        //   .eq('user_id', currentUser.id)
+        //   .single();
+
+        // if (patientError) throw patientError;
+
+        // const { data: appointmentsData, error: appointmentsError } = await supabase
+        //   .from('appointments')
+        //   .select('*')
+        //   .eq('patient_id', patientData.id)
+        //   .order('date', { ascending: true });
+
+        // if (appointmentsError) throw appointmentsError;
+
+        // Simulate API delay
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+
+        // setPatient(patientData);
+        // setAppointments(appointmentsData);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error)
+        // toast({
+        //   title: "Error",
+        //   description: "Failed to load your dashboard data. Please refresh the page.",
+        //   variant: "destructive",
+        // });
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -34,8 +73,17 @@ export default function PatientDashboard() {
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
-            <p className="text-xs text-muted-foreground">No appointment scheduled</p>
+            {isLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-1/2" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">--</div>
+                <p className="text-xs text-muted-foreground">No appointment scheduled</p>
+              </>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -44,8 +92,17 @@ export default function PatientDashboard() {
             <Syringe className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
-            <p className="text-xs text-muted-foreground">No vaccinations recorded</p>
+            {isLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-1/4" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">--</div>
+                <p className="text-xs text-muted-foreground">No vaccinations recorded</p>
+              </>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -54,8 +111,17 @@ export default function PatientDashboard() {
             <Bell className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
-            <p className="text-xs text-muted-foreground">No upcoming vaccinations</p>
+            {isLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-1/4" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">--</div>
+                <p className="text-xs text-muted-foreground">No upcoming vaccinations</p>
+              </>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -64,107 +130,57 @@ export default function PatientDashboard() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">--</div>
-            <p className="text-xs text-muted-foreground">No data available</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-7 lg:grid-cols-5">
-        <Card className="md:col-span-4 lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Vaccination History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-8">
+            {isLoading ? (
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Overall Progress</span>
-                  <span className="font-medium">0%</span>
+                <Skeleton className="h-6 w-1/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">--</div>
+                <p className="text-xs text-muted-foreground">No data available</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Vaccination History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-8">
+            {isLoading ? (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <Skeleton className="h-4 w-[100px]" />
+                    <Skeleton className="h-4 w-[40px]" />
+                  </div>
+                  <Skeleton className="h-4 w-full" />
                 </div>
-                <Progress value={0}>
-                  <ProgressPrimitive.Indicator
-                    className="h-full w-full flex-1 bg-primary transition-all"
-                    style={{ transform: `translateX(-${100 - 0}%)` }}
-                  />
-                </Progress>
-              </div>
-              <div className="space-y-4">
-                <p className="text-center text-muted-foreground py-6">No vaccination history available</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-3 lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Upcoming Schedule</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Calendar mode="single" required={false} selected={date} onSelect={setDate} className="rounded-md border" />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Health Reminders</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-center text-muted-foreground py-6">No health reminders at this time</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-center text-muted-foreground py-6">No recent activity to display</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Link href="/patient/vaccination-records">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                View Full Records
-                <ChevronRight className="h-5 w-5" />
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        </Link>
-
-        <Link href="/patient/appointment-scheduling">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Schedule Appointment
-                <ChevronRight className="h-5 w-5" />
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        </Link>
-
-        <Link href="/patient/account-management">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Account Settings
-                <ChevronRight className="h-5 w-5" />
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        </Link>
-      </div>
+                <div className="space-y-4">
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Overall Progress</span>
+                    <span className="font-medium">0%</span>
+                  </div>
+                  <Progress value={0} />
+                </div>
+                <div className="space-y-4">
+                  <p className="text-center text-muted-foreground py-6">No vaccination history available</p>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
-

@@ -1,4 +1,4 @@
-import type React from "react"
+import type { ReactNode } from "react"
 import { DashboardLayout } from "@/components/DashboardLayout"
 import { LayoutDashboard, Calendar, FileText, User } from "lucide-react"
 
@@ -9,11 +9,10 @@ const patientSections = [
   { name: "Account Management", href: "/patient/account-management", icon: User },
 ]
 
-export default function PatientLayout({ children }: { children: React.ReactNode }) {
+export default function PatientLayout({ children }: { children: ReactNode }) {
   return (
     <DashboardLayout role="patient" sections={patientSections}>
       {children}
     </DashboardLayout>
   )
 }
-

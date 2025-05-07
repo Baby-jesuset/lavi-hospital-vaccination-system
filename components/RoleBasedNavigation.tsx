@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -47,4 +49,3 @@ export function RoleBasedNavigation({ role }: RoleBasedNavigationProps) {
     </nav>
   )
 }
-

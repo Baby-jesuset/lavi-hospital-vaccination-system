@@ -1,68 +1,17 @@
 "use client"
 
-import * as React from "react"
-import { format } from "date-fns"
-import { Calendar as CalendarIcon, ChevronLeft, Download, Loader2 } from "lucide-react"
-import { DateRange } from "react-day-picker"
-import { cn } from "@/lib/utils"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DatePickerWithRange } from "@/components/ui/date-picker-with-range"
+import { ChevronLeft, Download, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { Badge } from "@/components/ui/badge"
-import { useState } from "react"
-
-interface DatePickerWithRangeProps {
-  date: DateRange | undefined
-  setDate: React.Dispatch<React.SetStateAction<DateRange>>
-}
-
-export function DatePickerWithRange({ date, setDate }: DatePickerWithRangeProps) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-[300px] justify-start text-left font-normal",
-            !date && "text-muted-foreground"
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date?.from ? (
-            date.to ? (
-              <>
-                {format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}
-              </>
-            ) : (
-              format(date.from, "LLL dd, y")
-            )
-          ) : (
-            <span>Pick a date range</span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          initialFocus
-          mode="range"
-          defaultMonth={date?.from}
-          selected={date}
-         
-          numberOfMonths={2}
-          required={false}
-        />
-      </PopoverContent>
-    </Popover>
-  )
-}
 
 export default function Reports() {
   const [selectedReport, setSelectedReport] = useState("vaccination")
   const [isLoading, setIsLoading] = useState(false)
-  const [dateRange, setDateRange] = useState<DateRange>({ from: new Date(2023, 0, 1), to: new Date() })
+  const [dateRange, setDateRange] = useState({ from: new Date(2023, 0, 1), to: new Date() })
 
   const generatePDF = () => {
     setIsLoading(true)
@@ -83,7 +32,6 @@ export default function Reports() {
             </Button>
           </Link>
           <h2 className="text-2xl font-bold tracking-tight">Reports</h2>
-          <Badge variant="secondary">Admin</Badge>
         </div>
       </div>
 
@@ -134,4 +82,3 @@ export default function Reports() {
     </div>
   )
 }
-

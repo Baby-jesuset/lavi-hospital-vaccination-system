@@ -1,7 +1,6 @@
-import type React from "react"
+import type { ReactNode } from "react"
 import { DashboardLayout } from "@/components/DashboardLayout"
 import { LayoutDashboard, Users, Package, Calendar, ClipboardList, BarChart } from "lucide-react"
-import { motion } from "framer-motion"
 
 const adminSections = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -12,18 +11,10 @@ const adminSections = [
   { name: "Reports", href: "/admin/reports", icon: BarChart },
 ]
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <DashboardLayout role="admin" sections={adminSections}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.3 }}
-      >
-        {children}
-      </motion.div>
+      {children}
     </DashboardLayout>
   )
 }
-
