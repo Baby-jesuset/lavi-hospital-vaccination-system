@@ -12,6 +12,7 @@ import { Mail, Lock, AlertCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { supabase } from "@/lib/supabase"
 
 export default function SignInPage() {
   const [email, setEmail] = useState("")
@@ -43,8 +44,37 @@ export default function SignInPage() {
 
     setIsLoading(true)
     try {
-      // Simulated authentication delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Authenticate with Supabase
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (signInError) {
+        throw new Error(signInError.message)
+      }
+
+      if (!data.user) {
+        throw new Error("No user found")
+      }
+
+      // Check if the user is a patient by looking up their email
+      const { data: patientData, error: patientError } = await supabase
+        .from("patients")
+        .select("patient_id")
+        .eq("email", email.toLowerCase())
+        .single()
+
+      if (patientError) {
+        console.error("Error checking patient:", patientError)
+
+        // If the error is "No rows found", it means the user is not a patient
+        if (patientError.code === "PGRST116") {
+          throw new Error("User is not registered as a patient")
+        }
+
+        throw new Error("Error verifying patient status")
+      }
 
       toast({
         title: "Signed in successfully",
@@ -52,11 +82,24 @@ export default function SignInPage() {
       })
       router.push("/patient/dashboard")
     } catch (err) {
-      setError("Invalid email or password")
+      console.error("Sign in error:", err)
+
+      let errorMessage = "Invalid email or password"
+      if (err instanceof Error) {
+        if (err.message.includes("not registered")) {
+          errorMessage = "This email is not registered as a patient"
+        } else if (err.message.includes("not active")) {
+          errorMessage = "Your account is not active"
+        } else if (err.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password"
+        }
+      }
+
+      setError(errorMessage)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to sign in. Please try again.",
+        description: errorMessage,
       })
     } finally {
       setIsLoading(false)

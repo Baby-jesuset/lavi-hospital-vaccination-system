@@ -6,67 +6,312 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ChevronLeft, ChevronRight, Plus, List, Grid, X, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, List, Grid, X, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { FormSection } from "@/components/forms/FormSection"
-import {
-  type AppointmentFormValues,
-  scheduleAppointment,
-  getAvailableTimeSlots,
-  getAvailableVaccinators,
-} from "./actions"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { z } from "zod"
+import { format, parseISO } from "date-fns"
+import { Skeleton } from "@/components/ui/skeleton"
 
-// Define the schema for appointment scheduling
-const scheduleAppointmentSchema = z.object({
-  purpose: z.string().min(1, { message: "Purpose is required" }),
-  date: z.string().min(1, { message: "Date is required" }),
-  startTime: z.string().min(1, { message: "Time is required" }),
-  vaccinatorId: z.string().min(1, { message: "Doctor is required" }),
-  notes: z.string().optional(),
+// Define the patient appointment form schema with Zod
+const patientAppointmentFormSchema = z.object({
+  vaccinatorId: z.string().min(1, "Please select a doctor"),
+  purpose: z.string().min(1, "Purpose is required"),
+  date: z.string().min(1, "Date is required"),
+  startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().min(1, "End time is required"),
+  description: z.string().optional(),
   notifyByEmail: z.boolean().default(true),
   notifyBySms: z.boolean().default(false),
+  notifyByWhatsapp: z.boolean().default(false),
 })
 
-export default function AppointmentScheduling() {
+type PatientAppointmentFormValues = z.infer<typeof patientAppointmentFormSchema>
+
+// Define the appointment type that matches what we get from Supabase
+interface Appointment {
+  appointment_id: string
+  patient_id: string
+  vaccinator_id: string
+  purpose: string
+  date_of_visit: string
+  start_time: string
+  end_time: string
+  description: string | null
+  notify_email: boolean
+  notify_sms: boolean
+  notify_whatsapp: boolean
+  status: string
+  created_at: string
+  updated_at: string
+  patients?: {
+    patient_id: string
+    first_name: string
+    last_name: string
+    email: string
+  }
+  vaccinators?: {
+    vaccinator_id: string
+    first_name: string
+    last_name: string
+    email: string
+  }
+}
+
+interface Vaccinator {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+}
+
+interface Patient {
+  patient_id: string
+  first_name: string
+  last_name: string
+  email: string
+}
+
+// Define the calendar day type
+interface CalendarDay {
+  date: Date
+  isCurrentMonth: boolean
+  isToday: boolean
+  appointments: Appointment[]
+}
+
+// Define loading states for different data types
+interface LoadingStates {
+  appointments: boolean
+  vaccinators: boolean
+  patient: boolean
+}
+
+// Define error states for different data types
+interface ErrorStates {
+  appointments: string | null
+  vaccinators: string | null
+  patient: string | null
+}
+
+export default function PatientAppointmentScheduling() {
+  const [searchQuery, setSearchQuery] = useState("")
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar")
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([])
-  const [availableVaccinators, setAvailableVaccinators] = useState<any[]>([])
-  const [isLoadingTimeSlots, setIsLoadingTimeSlots] = useState(false)
-  const [isLoadingVaccinators, setIsLoadingVaccinators] = useState(false)
-  const [appointments, setAppointments] = useState<any[]>([])
-  const [isLoadingAppointments, setIsLoadingAppointments] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [vaccinators, setVaccinators] = useState<Vaccinator[]>([])
+  const [currentPatient, setCurrentPatient] = useState<Patient | null>(null)
+  const [loadingStates, setLoadingStates] = useState<LoadingStates>({
+    appointments: true,
+    vaccinators: true,
+    patient: true,
+  })
+  const [errorStates, setErrorStates] = useState<ErrorStates>({
+    appointments: null,
+    vaccinators: null,
+    patient: null,
+  })
+  const [serverError, setServerError] = useState<string | null>(null)
 
   // Initialize the form with React Hook Form
-  const form = useForm<AppointmentFormValues>({
-    resolver: zodResolver(scheduleAppointmentSchema),
+  const form = useForm<PatientAppointmentFormValues>({
+    resolver: zodResolver(patientAppointmentFormSchema),
     defaultValues: {
       purpose: "",
       date: "",
       startTime: "",
+      endTime: "",
       vaccinatorId: "",
-      notes: "",
+      description: "",
       notifyByEmail: true,
       notifyBySms: false,
+      notifyByWhatsapp: false,
     },
   })
 
-  // Watch for changes to date and time to update available vaccinators
-  const watchDate = form.watch("date")
-  const watchTime = form.watch("startTime")
+  // Get current patient from API (simulated for demo)
+  useEffect(() => {
+    const fetchCurrentPatient = async () => {
+      setLoadingStates((prev) => ({ ...prev, patient: true }))
+      setErrorStates((prev) => ({ ...prev, patient: null }))
+
+      // Clear any existing appointments when patient changes
+      setAppointments([])
+
+      try {
+        const response = await fetch("/api/patients/current")
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch current patient")
+        }
+
+        const data = await response.json()
+
+        if (data.patient) {
+          // Set the current patient and clear any previous state
+          setCurrentPatient(data.patient)
+          console.log("Current patient loaded successfully:", data.patient.patient_id)
+        } else {
+          throw new Error("No patient found")
+        }
+      } catch (error) {
+        console.error("Error fetching current patient:", error)
+        setErrorStates((prev) => ({ ...prev, patient: "Failed to load patient data" }))
+      } finally {
+        setLoadingStates((prev) => ({ ...prev, patient: false }))
+      }
+    }
+
+    fetchCurrentPatient()
+  }, [])
+
+  // Check if any data is loading
+  const isLoading = Object.values(loadingStates).some((state) => state)
+
+  // Fetch patient's appointments for the current month
+  const fetchAppointments = async () => {
+    if (!currentPatient) {
+      console.log("No patient available, skipping appointment fetch")
+      setLoadingStates((prev) => ({ ...prev, appointments: false }))
+      return
+    }
+
+    setLoadingStates((prev) => ({ ...prev, appointments: true }))
+    setErrorStates((prev) => ({ ...prev, appointments: null }))
+
+    try {
+      // Get the first and last day of the current month
+      const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+      const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
+
+      const startDate = firstDay.toISOString().split("T")[0]
+      const endDate = lastDay.toISOString().split("T")[0]
+
+      // Make sure to include the patientId parameter to filter appointments
+      const response = await fetch(
+        `/api/appointments?startDate=${startDate}&endDate=${endDate}&patientId=${currentPatient.patient_id}`,
+      )
+
+      // Check if response is ok
+      if (!response.ok) {
+        // Check if response is HTML (server error page)
+        const contentType = response.headers.get("content-type")
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`Server error (${response.status}): Unable to load appointments`)
+        }
+
+        // Try to parse JSON error message
+        try {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `Failed to load appointments (${response.status})`)
+        } catch (parseError) {
+          throw new Error(`Failed to load appointments (${response.status})`)
+        }
+      }
+
+      // Validate content type is JSON
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response format from server")
+      }
+
+      const data = await response.json()
+
+      // Clear any existing appointments before setting new ones
+      setAppointments([])
+
+      // Double check that we're only showing appointments for the current patient
+      const patientAppointments = (data.data || []).filter(
+        (appointment: Appointment) => appointment.patient_id === currentPatient.patient_id,
+      )
+
+      console.log(`Loaded ${patientAppointments.length} appointments for patient ${currentPatient.patient_id}`)
+      setAppointments(patientAppointments)
+    } catch (error: any) {
+      console.error("Error fetching appointments:", error)
+      const errorMessage = error.message || "Failed to load appointments"
+      setErrorStates((prev) => ({ ...prev, appointments: errorMessage }))
+      toast({
+        title: "Error loading appointments",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, appointments: false }))
+    }
+  }
+
+  // Fetch vaccinators
+  const fetchVaccinators = async () => {
+    setLoadingStates((prev) => ({ ...prev, vaccinators: true }))
+    setErrorStates((prev) => ({ ...prev, vaccinators: null }))
+
+    try {
+      const response = await fetch("/api/vaccinators/list")
+
+      // Check if response is ok
+      if (!response.ok) {
+        // Check if response is HTML (server error page)
+        const contentType = response.headers.get("content-type")
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`Server error (${response.status}): Unable to load doctors`)
+        }
+
+        // Try to parse JSON error message
+        try {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `Failed to load doctors (${response.status})`)
+        } catch (parseError) {
+          throw new Error(`Failed to load doctors (${response.status})`)
+        }
+      }
+
+      // Validate content type is JSON
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response format from server")
+      }
+
+      const data = await response.json()
+      setVaccinators(data.data || [])
+    } catch (error: any) {
+      console.error("Error fetching vaccinators:", error)
+      const errorMessage = error.message || "Failed to load doctors"
+      setErrorStates((prev) => ({ ...prev, vaccinators: errorMessage }))
+      toast({
+        title: "Error loading doctors",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, vaccinators: false }))
+    }
+  }
+
+  // Fetch data when component mounts or when currentMonth changes
+  useEffect(() => {
+    if (currentPatient) {
+      fetchAppointments()
+    }
+  }, [currentMonth, currentPatient])
+
+  // Fetch vaccinators only once when component mounts
+  useEffect(() => {
+    fetchVaccinators()
+  }, [])
+
+  // Refresh data periodically
 
   // Helper function to check if two dates are the same day
   const isSameDay = (date1: Date, date2: Date) => {
@@ -96,7 +341,7 @@ export default function AppointmentScheduling() {
     startDate.setDate(startDate.getDate() - daysFromPrevMonth)
 
     // We'll show 6 weeks (42 days) to ensure we have enough rows
-    const calendarDays = []
+    const calendarDays: CalendarDay[] = []
 
     for (let i = 0; i < 42; i++) {
       const currentDate = new Date(startDate)
@@ -104,10 +349,10 @@ export default function AppointmentScheduling() {
 
       const isCurrentMonth = currentDate.getMonth() === month
 
-      // Find appointments for this day
-      const dayAppointments = appointments.filter((app) => {
-        const appDate = new Date(app.appointment_date)
-        return isSameDay(appDate, currentDate)
+      // Filter appointments for this day
+      const dayAppointments = appointments.filter((appointment) => {
+        const appointmentDate = parseISO(appointment.date_of_visit)
+        return isSameDay(appointmentDate, currentDate)
       })
 
       calendarDays.push({
@@ -120,98 +365,6 @@ export default function AppointmentScheduling() {
 
     return calendarDays
   }
-
-  // Fetch appointments when the component mounts
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      setIsLoadingAppointments(true)
-      setError(null)
-      try {
-        const response = await fetch("/api/appointments/patient")
-        if (!response.ok) {
-          throw new Error("Failed to fetch appointments")
-        }
-        const data = await response.json()
-        setAppointments(data)
-      } catch (err) {
-        console.error("Error fetching appointments:", err)
-        setError("Failed to load appointments. Please try again later.")
-        toast({
-          title: "Error",
-          description: "Failed to load appointments. Please try again later.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoadingAppointments(false)
-      }
-    }
-
-    fetchAppointments()
-  }, [toast])
-
-  // Update available time slots when date changes
-  useEffect(() => {
-    if (watchDate) {
-      const fetchTimeSlots = async () => {
-        setIsLoadingTimeSlots(true)
-        try {
-          const result = await getAvailableTimeSlots(watchDate)
-          if (result.success) {
-            setAvailableTimeSlots(result.data || [])
-          } else {
-            toast({
-              title: "Error",
-              description: result.error || "Failed to load available time slots",
-              variant: "destructive",
-            })
-          }
-        } catch (err) {
-          console.error("Error fetching time slots:", err)
-          toast({
-            title: "Error",
-            description: "Failed to load available time slots",
-            variant: "destructive",
-          })
-        } finally {
-          setIsLoadingTimeSlots(false)
-        }
-      }
-
-      fetchTimeSlots()
-    }
-  }, [watchDate, toast])
-
-  // Update available vaccinators when date and time change
-  useEffect(() => {
-    if (watchDate && watchTime) {
-      const fetchVaccinators = async () => {
-        setIsLoadingVaccinators(true)
-        try {
-          const result = await getAvailableVaccinators(watchDate, watchTime)
-          if (result.success) {
-            setAvailableVaccinators(result.data || [])
-          } else {
-            toast({
-              title: "Error",
-              description: result.error || "Failed to load available vaccinators",
-              variant: "destructive",
-            })
-          }
-        } catch (err) {
-          console.error("Error fetching vaccinators:", err)
-          toast({
-            title: "Error",
-            description: "Failed to load available vaccinators",
-            variant: "destructive",
-          })
-        } finally {
-          setIsLoadingVaccinators(false)
-        }
-      }
-
-      fetchVaccinators()
-    }
-  }, [watchDate, watchTime, toast])
 
   const calendarDays = generateCalendarDays()
 
@@ -243,47 +396,87 @@ export default function AppointmentScheduling() {
   const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
   // Handle form submission
-  async function onSubmit(values: AppointmentFormValues) {
-    setIsSubmitting(true)
-    try {
-      const result = await scheduleAppointment(values)
-
-      if (result.success) {
-        toast({
-          title: "Appointment scheduled",
-          description: "Your appointment has been scheduled successfully.",
-        })
-        setShowAddDialog(false)
-        form.reset()
-
-        // Refresh appointments
-        const response = await fetch("/api/appointments/patient")
-        if (response.ok) {
-          const data = await response.json()
-          setAppointments(data)
-        }
-      } else {
-        // Handle field-specific errors
-        if (result.fieldErrors) {
-          Object.entries(result.fieldErrors).forEach(([field, message]) => {
-            form.setError(field as any, {
-              type: "server",
-              message,
-            })
-          })
-        }
-
-        toast({
-          title: "Error",
-          description: result.error || "Failed to schedule appointment. Please try again.",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("Error scheduling appointment:", error)
+  async function onSubmit(values: PatientAppointmentFormValues) {
+    if (!currentPatient) {
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: "Unable to identify your account. Please try again later.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+    setServerError(null)
+
+    try {
+      // Prepare data for API
+      const appointmentData = {
+        patient_id: currentPatient.patient_id,
+        vaccinator_id: values.vaccinatorId,
+        purpose: values.purpose,
+        date_of_visit: values.date,
+        start_time: values.startTime,
+        end_time: values.endTime,
+        status: "scheduled",
+        description: values.description || null,
+        notify_email: values.notifyByEmail,
+        notify_sms: values.notifyBySms,
+        notify_whatsapp: values.notifyByWhatsapp,
+      }
+
+      // Submit appointment to API
+      const response = await fetch("/api/appointments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(appointmentData),
+      })
+
+      // Check if response is ok
+      if (!response.ok) {
+        // Check if response is HTML (server error page)
+        const contentType = response.headers.get("content-type")
+        if (contentType && contentType.includes("text/html")) {
+          throw new Error(`Server error (${response.status}): Unable to create appointment`)
+        }
+
+        // Try to parse JSON error message
+        try {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `Failed to create appointment (${response.status})`)
+        } catch (parseError) {
+          throw new Error(`Failed to create appointment (${response.status})`)
+        }
+      }
+
+      // Validate content type is JSON
+      const contentType = response.headers.get("content-type")
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response format from server")
+      }
+
+      const data = await response.json()
+
+      toast({
+        title: "Appointment scheduled",
+        description: "Your appointment has been scheduled successfully.",
+      })
+
+      // Refresh appointments
+      fetchAppointments()
+
+      setShowAddDialog(false)
+      form.reset()
+    } catch (error: any) {
+      console.error("Error scheduling appointment:", error)
+      const errorMessage = error.message || "An unexpected error occurred. Please try again."
+      setServerError(errorMessage)
+
+      toast({
+        title: "Error",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -291,13 +484,139 @@ export default function AppointmentScheduling() {
     }
   }
 
-  // Format appointment time for display
-  const formatTime = (timeString: string) => {
-    const [hours, minutes] = timeString.split(":")
-    const hour = Number.parseInt(hours, 10)
-    const ampm = hour >= 12 ? "PM" : "AM"
-    const hour12 = hour % 12 || 12
-    return `${hour12}:${minutes} ${ampm}`
+  // Filter appointments for list view
+  const filteredAppointments = appointments.filter((appointment) => {
+    const vaccinatorName = appointment.vaccinators
+      ? `${appointment.vaccinators.first_name} ${appointment.vaccinators.last_name}`
+      : ""
+
+    return (
+      vaccinatorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      appointment.purpose.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      appointment.status.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  })
+
+  // Render loading skeletons for appointments
+  const renderAppointmentSkeletons = () => {
+    return Array(5)
+      .fill(0)
+      .map((_, index) => (
+        <div key={index} className="border rounded-md p-3">
+          <div className="flex justify-between items-start">
+            <div>
+              <Skeleton className="h-5 w-40 mb-2" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="text-right">
+              <Skeleton className="h-5 w-24 mb-2" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          </div>
+          <div className="flex justify-between items-center mt-2">
+            <Skeleton className="h-4 w-32" />
+            <div className="flex space-x-2">
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-16" />
+            </div>
+          </div>
+        </div>
+      ))
+  }
+
+  // Render empty state for appointments
+  const renderEmptyAppointments = () => {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <h3 className="text-lg font-medium mb-2">No appointments found</h3>
+        <p className="text-muted-foreground mb-4">
+          {errorStates.appointments
+            ? "There was an error loading your appointments."
+            : "You have no appointments scheduled for this month."}
+        </p>
+        <Button onClick={() => setShowAddDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Schedule Appointment
+        </Button>
+      </div>
+    )
+  }
+
+  // Render empty state for vaccinators
+  const renderEmptyVaccinators = () => {
+    return (
+      <div className="flex flex-col items-center justify-center py-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          {errorStates.vaccinators ? "Error loading doctors" : "No doctors available"}
+        </p>
+      </div>
+    )
+  }
+
+  // Get status badge color
+  const getStatusBadgeColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "scheduled":
+        return "bg-blue-100 text-blue-800"
+      case "confirmed":
+        return "bg-green-100 text-green-800"
+      case "completed":
+        return "bg-gray-100 text-gray-800"
+      case "cancelled":
+        return "bg-red-100 text-red-800"
+      case "no_show":
+        return "bg-orange-100 text-orange-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  // Show loading state while data is being fetched
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Link href="/patient/dashboard">
+              <Button variant="ghost" size="icon">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <h2 className="text-2xl font-bold tracking-tight">My Appointments</h2>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Skeleton className="h-9 w-16" />
+          <Skeleton className="h-9 w-9" />
+          <Skeleton className="h-9 w-40" />
+          <Skeleton className="h-9 w-9" />
+          <div className="ml-auto flex items-center space-x-2">
+            <Skeleton className="h-9 w-9" />
+            <Skeleton className="h-9 w-9" />
+          </div>
+        </div>
+
+        <Card className="overflow-hidden">
+          <div className="grid grid-cols-7 border-b">
+            {weekdays.map((day, index) => (
+              <div key={index} className="p-2 text-center font-medium text-sm">
+                {day}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 auto-rows-fr">
+            {Array(42)
+              .fill(0)
+              .map((_, index) => (
+                <div key={index} className="min-h-[100px] p-1 border border-border relative bg-muted/20">
+                  <Skeleton className="h-6 w-6 rounded-full ml-auto" />
+                </div>
+              ))}
+          </div>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -309,16 +628,15 @@ export default function AppointmentScheduling() {
               <ChevronLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-3xl font-bold">Schedule Appointment</h1>
-            <p className="text-muted-foreground mt-2">Book your vaccination appointment</p>
-          </div>
+          <h2 className="text-2xl font-bold tracking-tight">My Appointments</h2>
         </div>
       </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
+      {/* Show error alerts */}
+      {serverError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{serverError}</AlertDescription>
         </Alert>
       )}
 
@@ -349,12 +667,7 @@ export default function AppointmentScheduling() {
         </div>
       </div>
 
-      {isLoadingAppointments ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading appointments...</span>
-        </div>
-      ) : viewMode === "calendar" ? (
+      {viewMode === "calendar" ? (
         <Card className="overflow-hidden">
           <div className="grid grid-cols-7 border-b">
             {weekdays.map((day, index) => (
@@ -363,84 +676,122 @@ export default function AppointmentScheduling() {
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-7 auto-rows-fr">
-            {calendarDays.map((day, index) => (
-              <div
-                key={index}
-                className={`min-h-[100px] p-1 border border-border relative ${
-                  !day.isCurrentMonth ? "bg-muted/30 text-muted-foreground" : ""
-                } ${day.isToday ? "bg-primary/5" : ""}`}
-                onClick={() => {
-                  // Don't allow scheduling in the past
-                  if (day.date < new Date(new Date().setHours(0, 0, 0, 0))) {
-                    toast({
-                      title: "Cannot schedule in the past",
-                      description: "Please select a future date for your appointment.",
-                      variant: "destructive",
-                    })
-                    return
-                  }
-
-                  setSelectedDate(day.date)
-                  form.setValue("date", day.date.toISOString().split("T")[0])
-                  setShowAddDialog(true)
-                }}
-              >
-                <div
-                  className={`text-right p-1 ${
-                    day.isToday
-                      ? "bg-primary text-primary-foreground rounded-full w-7 h-7 flex items-center justify-center ml-auto"
-                      : ""
-                  }`}
-                >
-                  {day.date.getDate()}
-                </div>
-                <div className="mt-1">
-                  {day.appointments.slice(0, 2).map((app, idx) => (
-                    <div key={idx} className="bg-primary/80 text-primary-foreground text-xs p-1 rounded mb-1 truncate">
-                      {formatTime(app.appointment_time)} - {app.purpose}
-                    </div>
-                  ))}
-                  {day.appointments.length > 2 && (
-                    <div className="text-xs text-muted-foreground text-center">+{day.appointments.length - 2} more</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      ) : (
-        <Card className="p-4">
-          {appointments.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">No appointments scheduled</div>
-          ) : (
-            <div className="space-y-4">
-              {appointments.map((appointment, index) => (
-                <Card key={index} className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-medium">{appointment.purpose}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(appointment.appointment_date).toLocaleDateString()} at{" "}
-                        {formatTime(appointment.appointment_time)}
-                      </p>
-                      <p className="text-sm mt-1">
-                        Doctor: {appointment.vaccinator?.first_name} {appointment.vaccinator?.last_name}
-                      </p>
-                    </div>
-                    <div className="flex items-center">
-                      <Button variant="outline" size="sm" className="mr-2">
-                        Reschedule
-                      </Button>
-                      <Button variant="destructive" size="sm">
-                        Cancel
-                      </Button>
-                    </div>
+          {loadingStates.appointments ? (
+            <div className="grid grid-cols-7 auto-rows-fr">
+              {Array(42)
+                .fill(0)
+                .map((_, index) => (
+                  <div key={index} className="min-h-[100px] p-1 border border-border relative bg-muted/20">
+                    <Skeleton className="h-6 w-6 rounded-full ml-auto" />
                   </div>
-                </Card>
+                ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-7 auto-rows-fr">
+              {calendarDays.map((day, index) => (
+                <div
+                  key={index}
+                  className={`min-h-[100px] p-1 border border-border relative cursor-pointer hover:bg-muted/50 ${
+                    !day.isCurrentMonth ? "bg-muted/30 text-muted-foreground" : ""
+                  } ${day.isToday ? "bg-primary/5" : ""}`}
+                  onClick={() => {
+                    // Don't allow scheduling in the past
+                    if (day.date < new Date(new Date().setHours(0, 0, 0, 0))) {
+                      toast({
+                        title: "Cannot schedule in the past",
+                        description: "Please select a future date for your appointment.",
+                        variant: "destructive",
+                      })
+                      return
+                    }
+
+                    setSelectedDate(day.date)
+                    form.setValue("date", day.date.toISOString().split("T")[0])
+                    setShowAddDialog(true)
+                  }}
+                >
+                  <div
+                    className={`text-right p-1 ${
+                      day.isToday
+                        ? "bg-primary text-primary-foreground rounded-full w-7 h-7 flex items-center justify-center ml-auto"
+                        : ""
+                    }`}
+                  >
+                    {day.date.getDate()}
+                  </div>
+                  <div className="mt-1">
+                    {day.appointments.map((appointment, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-primary/80 text-primary-foreground text-xs p-1 rounded mb-1 truncate"
+                      >
+                        {appointment.start_time.substring(0, 5)} - {appointment.purpose}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}
+        </Card>
+      ) : (
+        <Card className="p-4">
+          <Input
+            type="search"
+            placeholder="Search your appointments..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="max-w-sm mb-4"
+          />
+
+          <div className="space-y-2">
+            {loadingStates.appointments
+              ? renderAppointmentSkeletons()
+              : filteredAppointments.length > 0
+                ? filteredAppointments.map((appointment) => (
+                    <div
+                      key={appointment.appointment_id}
+                      className="border rounded-md p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-medium">{appointment.purpose}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Dr. {appointment.vaccinators ? `${appointment.vaccinators.last_name}` : "Unknown"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium">
+                            {format(parseISO(appointment.date_of_visit), "MMM dd, yyyy")}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {appointment.start_time.substring(0, 5)} - {appointment.end_time.substring(0, 5)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center mt-2">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(
+                            appointment.status,
+                          )}`}
+                        >
+                          {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                        </span>
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="sm">
+                            View
+                          </Button>
+                          {appointment.status === "scheduled" && (
+                            <Button variant="outline" size="sm">
+                              Reschedule
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                : renderEmptyAppointments()}
+          </div>
         </Card>
       )}
 
@@ -448,11 +799,7 @@ export default function AppointmentScheduling() {
       <Button
         className="h-14 w-14 rounded-full fixed bottom-8 right-8 shadow-lg flex items-center justify-center"
         size="icon"
-        onClick={() => {
-          setSelectedDate(new Date())
-          form.setValue("date", new Date().toISOString().split("T")[0])
-          setShowAddDialog(true)
-        }}
+        onClick={() => setShowAddDialog(true)}
       >
         <Plus className="h-6 w-6" />
       </Button>
@@ -461,7 +808,7 @@ export default function AppointmentScheduling() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Schedule Appointment</DialogTitle>
+            <DialogTitle>Schedule New Appointment</DialogTitle>
             <DialogDescription>Fill in the details to schedule your vaccination appointment.</DialogDescription>
           </DialogHeader>
           <Button
@@ -473,6 +820,13 @@ export default function AppointmentScheduling() {
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </Button>
+
+          {serverError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{serverError}</AlertDescription>
+            </Alert>
+          )}
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -493,7 +847,9 @@ export default function AppointmentScheduling() {
                           <SelectItem value="covid19">COVID-19 Vaccination</SelectItem>
                           <SelectItem value="flu">Flu Vaccination</SelectItem>
                           <SelectItem value="tdap">Tdap Vaccination</SelectItem>
+                          <SelectItem value="hepatitis">Hepatitis Vaccination</SelectItem>
                           <SelectItem value="consultation">Vaccination Consultation</SelectItem>
+                          <SelectItem value="follow_up">Follow-up Visit</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -507,9 +863,25 @@ export default function AppointmentScheduling() {
                     name="date"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Date</FormLabel>
+                        <FormLabel>Date of visit</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} disabled={isSubmitting} />
+                          <Input type="date" disabled={isSubmitting} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="startTime"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start time</FormLabel>
+                        <FormControl>
+                          <Input type="time" disabled={isSubmitting} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -517,38 +889,13 @@ export default function AppointmentScheduling() {
                   />
                   <FormField
                     control={form.control}
-                    name="startTime"
+                    name="endTime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Time</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          disabled={isSubmitting || isLoadingTimeSlots || !watchDate}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder={isLoadingTimeSlots ? "Loading..." : "Select time"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {isLoadingTimeSlots ? (
-                              <SelectItem value="loading" disabled>
-                                Loading available times...
-                              </SelectItem>
-                            ) : availableTimeSlots.length === 0 ? (
-                              <SelectItem value="none" disabled>
-                                No available times
-                              </SelectItem>
-                            ) : (
-                              availableTimeSlots.map((time) => (
-                                <SelectItem key={time} value={time}>
-                                  {formatTime(time)}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>End time</FormLabel>
+                        <FormControl>
+                          <Input type="time" disabled={isSubmitting} {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -564,28 +911,28 @@ export default function AppointmentScheduling() {
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
-                        disabled={isSubmitting || isLoadingVaccinators || !watchDate || !watchTime}
+                        disabled={isSubmitting || loadingStates.vaccinators}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder={isLoadingVaccinators ? "Loading..." : "Select doctor"} />
+                            <SelectValue
+                              placeholder={loadingStates.vaccinators ? "Loading doctors..." : "Select doctor"}
+                            />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
-                          {isLoadingVaccinators ? (
-                            <SelectItem value="loading" disabled>
-                              Loading available doctors...
-                            </SelectItem>
-                          ) : availableVaccinators.length === 0 ? (
-                            <SelectItem value="none" disabled>
-                              No available doctors
-                            </SelectItem>
-                          ) : (
-                            availableVaccinators.map((vaccinator) => (
+                        <SelectContent className="max-h-[200px]">
+                          {loadingStates.vaccinators ? (
+                            <div className="flex items-center justify-center py-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                            </div>
+                          ) : vaccinators.length > 0 ? (
+                            vaccinators.map((vaccinator) => (
                               <SelectItem key={vaccinator.id} value={vaccinator.id}>
                                 Dr. {vaccinator.first_name} {vaccinator.last_name}
                               </SelectItem>
                             ))
+                          ) : (
+                            renderEmptyVaccinators()
                           )}
                         </SelectContent>
                       </Select>
@@ -596,13 +943,13 @@ export default function AppointmentScheduling() {
 
                 <FormField
                   control={form.control}
-                  name="notes"
+                  name="description"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Additional Notes</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Any specific requirements or information"
+                          placeholder="Any specific requirements or information for your appointment"
                           className="min-h-[80px]"
                           disabled={isSubmitting}
                           {...field}
@@ -615,7 +962,7 @@ export default function AppointmentScheduling() {
               </FormSection>
 
               <FormSection title="Notification Preferences">
-                <div className="flex gap-6">
+                <div className="flex flex-wrap gap-6">
                   <FormField
                     control={form.control}
                     name="notifyByEmail"
@@ -644,6 +991,20 @@ export default function AppointmentScheduling() {
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="notifyByWhatsapp"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-2 space-y-0">
+                        <FormControl>
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} disabled={isSubmitting} />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>WhatsApp</FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </FormSection>
               <div className="flex justify-end space-x-2 pt-4">
@@ -653,7 +1014,26 @@ export default function AppointmentScheduling() {
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
                       Scheduling...
                     </>
                   ) : (

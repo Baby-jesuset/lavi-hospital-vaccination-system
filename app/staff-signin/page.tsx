@@ -12,6 +12,7 @@ import { Mail, Lock, AlertCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { supabase } from "@/utils/supabase"
 
 export default function StaffSignInPage() {
   const [email, setEmail] = useState("")
@@ -43,28 +44,77 @@ export default function StaffSignInPage() {
 
     setIsLoading(true)
     try {
-      // Simulated authentication delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Check for admin credentials first
+      if (email.toLowerCase() === "admin@lavihospital.com" && password === "Admin123!@#") {
+        // Store admin session info in localStorage
+        localStorage.setItem(
+          "authUser",
+          JSON.stringify({
+            email: email.toLowerCase(),
+            role: "admin",
+            isAuthenticated: true,
+          }),
+        )
 
-      // Check email domain to determine role
-      const emailDomain = email.split("@")[1]
-      if (emailDomain === "admin.lavihospital.com") {
         toast({
           title: "Signed in successfully",
           description: "Welcome back, Administrator!",
         })
         router.push("/admin/dashboard")
-      } else if (emailDomain === "lavihospital.com") {
-        toast({
-          title: "Signed in successfully",
-          description: "Welcome back, Doctor!",
-        })
-        router.push("/doctor/dashboard")
-      } else {
-        throw new Error("Invalid staff email domain")
+        return
       }
-    } catch (err) {
-      setError("Invalid email or password")
+
+      // For non-admin users, authenticate with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError) throw authError
+
+      console.log("Auth data:", authData)
+
+      // Check if the user exists in the vaccinators table
+      const { data: staffData, error: staffError } = await supabase
+        .from("vaccinators")
+        .select("*")
+        .eq("auth_id", authData.user.id)
+        .eq("status", "active") // Only allow active staff to sign in
+        .single()
+
+      if (staffError) {
+        console.error("Staff query error:", staffError)
+        throw new Error("User not found in vaccinator records or account is inactive")
+      }
+
+      console.log("Staff data:", staffData)
+
+      if (!staffData) {
+        throw new Error("User not found in vaccinator records")
+      }
+
+      // Store user session info in localStorage with explicit role
+      localStorage.setItem(
+        "authUser",
+        JSON.stringify({
+          id: staffData.vaccinator_id, // Use vaccinator_id instead of id
+          auth_id: staffData.auth_id,
+          email: staffData.email,
+          name: `${staffData.first_name} ${staffData.last_name}`,
+          role: "doctor", // Explicitly set role
+          isAuthenticated: true,
+        }),
+      )
+
+      toast({
+        title: "Signed in successfully",
+        description: `Welcome back, Dr. ${staffData.last_name}!`,
+      })
+
+      router.push("/doctor/dashboard")
+    } catch (err: any) {
+      console.error("Sign in error:", err)
+      setError("Invalid email or password, or your account may be inactive")
       toast({
         variant: "destructive",
         title: "Error",

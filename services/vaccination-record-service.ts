@@ -1,8 +1,5 @@
-import { getSupabaseServer } from "@/lib/supabase-client"
+import { supabase } from "@/lib/supabase"
 import type { Database } from "@/types/database.types"
-import { createLogger } from "@/utils/logging"
-
-const logger = createLogger("vaccinationRecordService")
 
 type VaccinationRecord = Database["public"]["Tables"]["vaccination_records"]["Row"]
 type VaccinationRecordInsert = Database["public"]["Tables"]["vaccination_records"]["Insert"]
@@ -32,174 +29,133 @@ export type VaccinationRecordWithDetails = VaccinationRecord & {
   }
 }
 
-// Define the vaccination record service
-export const vaccinationRecordService = {
-  /**
-   * Get all vaccination records
-   */
-  async getAllVaccinationRecords() {
+export const VaccinationRecordService = {
+  // Get all vaccination records with details
+  async getAllVaccinationRecords(): Promise<VaccinationRecordWithDetails[]> {
     try {
-      const supabase = getSupabaseServer()
       const { data, error } = await supabase
         .from("vaccination_records")
         .select(`
           *,
-          patients(id, first_name, last_name),
-          vaccinators(id, first_name, last_name),
-          vaccines(id, name, manufacturer)
+          patient:patient_id(id, first_name, last_name, email),
+          vaccinator:vaccinator_id(id, first_name, last_name, email),
+          inventory:inventory_id(
+            id, 
+            lot_number, 
+            vaccine_type:vaccine_type_id(name, target_disease),
+            manufacturer:manufacturer_id(name)
+          )
         `)
-        .order("vaccination_date", { ascending: false })
+        .order("date_administered", { ascending: false })
 
       if (error) {
+        console.error("Error fetching vaccination records:", error)
         throw error
       }
 
-      return data || []
+      return data as unknown as VaccinationRecordWithDetails[]
     } catch (error) {
-      logger.error("Error fetching vaccination records", error)
+      console.error("Error in getAllVaccinationRecords:", error)
       throw error
     }
   },
 
-  /**
-   * Get vaccination records for a specific patient
-   */
-  async getVaccinationRecordsByPatientId(patientId: string) {
+  // Get vaccination records for a specific patient
+  async getPatientVaccinationRecords(patientId: string): Promise<VaccinationRecordWithDetails[]> {
     try {
-      const supabase = getSupabaseServer()
       const { data, error } = await supabase
         .from("vaccination_records")
         .select(`
           *,
-          vaccinators(id, first_name, last_name),
-          vaccines(id, name, manufacturer, recommended_doses, dose_interval)
+          patient:patient_id(id, first_name, last_name, email),
+          vaccinator:vaccinator_id(id, first_name, last_name, email),
+          inventory:inventory_id(
+            id, 
+            lot_number, 
+            vaccine_type:vaccine_type_id(name, target_disease),
+            manufacturer:manufacturer_id(name)
+          )
         `)
         .eq("patient_id", patientId)
-        .order("vaccination_date", { ascending: false })
+        .order("date_administered", { ascending: false })
 
       if (error) {
+        console.error("Error fetching patient vaccination records:", error)
         throw error
       }
 
-      return data || []
+      return data as unknown as VaccinationRecordWithDetails[]
     } catch (error) {
-      logger.error(`Error fetching vaccination records for patient ${patientId}`, error)
+      console.error("Error in getPatientVaccinationRecords:", error)
       throw error
     }
   },
 
-  /**
-   * Get vaccination records for a specific vaccinator
-   */
-  async getVaccinationRecordsByVaccinatorId(vaccinatorId: string) {
+  // Create a new vaccination record
+  async createVaccinationRecord(record: VaccinationRecordInsert): Promise<VaccinationRecord> {
     try {
-      const supabase = getSupabaseServer()
+      // Start a transaction to update inventory and create the record
+      const { data, error } = await supabase.rpc("create_vaccination_record", {
+        record_data: record,
+      })
+
+      if (error) {
+        console.error("Error creating vaccination record:", error)
+        throw error
+      }
+
+      return data
+    } catch (error) {
+      console.error("Error in createVaccinationRecord:", error)
+      throw error
+    }
+  },
+
+  // Update an existing vaccination record
+  async updateVaccinationRecord(id: string, updates: VaccinationRecordUpdate): Promise<VaccinationRecord> {
+    try {
+      const { data, error } = await supabase.from("vaccination_records").update(updates).eq("id", id).select().single()
+
+      if (error) {
+        console.error("Error updating vaccination record:", error)
+        throw error
+      }
+
+      return data
+    } catch (error) {
+      console.error("Error in updateVaccinationRecord:", error)
+      throw error
+    }
+  },
+
+  // Get a vaccination certificate by ID
+  async getVaccinationCertificate(certificateId: string): Promise<VaccinationRecordWithDetails | null> {
+    try {
       const { data, error } = await supabase
         .from("vaccination_records")
         .select(`
           *,
-          patients(id, first_name, last_name),
-          vaccines(id, name, manufacturer)
+          patient:patient_id(id, first_name, last_name, email),
+          vaccinator:vaccinator_id(id, first_name, last_name, email),
+          inventory:inventory_id(
+            id, 
+            lot_number, 
+            vaccine_type:vaccine_type_id(name, target_disease),
+            manufacturer:manufacturer_id(name)
+          )
         `)
-        .eq("vaccinator_id", vaccinatorId)
-        .order("vaccination_date", { ascending: false })
-
-      if (error) {
-        throw error
-      }
-
-      return data || []
-    } catch (error) {
-      logger.error(`Error fetching vaccination records for vaccinator ${vaccinatorId}`, error)
-      throw error
-    }
-  },
-
-  /**
-   * Get a vaccination record by ID
-   */
-  async getVaccinationRecordById(id: string) {
-    try {
-      const supabase = getSupabaseServer()
-      const { data, error } = await supabase
-        .from("vaccination_records")
-        .select(`
-          *,
-          patients(id, first_name, last_name),
-          vaccinators(id, first_name, last_name),
-          vaccines(id, name, manufacturer)
-        `)
-        .eq("id", id)
+        .eq("certificate_id", certificateId)
         .single()
 
       if (error) {
-        throw error
+        console.error("Error fetching vaccination certificate:", error)
+        return null
       }
 
-      return data
+      return data as unknown as VaccinationRecordWithDetails
     } catch (error) {
-      logger.error(`Error fetching vaccination record with id ${id}`, error)
-      throw error
-    }
-  },
-
-  /**
-   * Create a new vaccination record
-   */
-  async createVaccinationRecord(recordData: any) {
-    try {
-      const supabase = getSupabaseServer()
-      const { data, error } = await supabase.from("vaccination_records").insert([recordData]).select().single()
-
-      if (error) {
-        throw error
-      }
-
-      return data
-    } catch (error) {
-      logger.error("Error creating vaccination record", error)
-      throw error
-    }
-  },
-
-  /**
-   * Update an existing vaccination record
-   */
-  async updateVaccinationRecord(id: string, recordData: any) {
-    try {
-      const supabase = getSupabaseServer()
-      const { data, error } = await supabase
-        .from("vaccination_records")
-        .update(recordData)
-        .eq("id", id)
-        .select()
-        .single()
-
-      if (error) {
-        throw error
-      }
-
-      return data
-    } catch (error) {
-      logger.error(`Error updating vaccination record with id ${id}`, error)
-      throw error
-    }
-  },
-
-  /**
-   * Delete a vaccination record
-   */
-  async deleteVaccinationRecord(id: string) {
-    try {
-      const supabase = getSupabaseServer()
-      const { error } = await supabase.from("vaccination_records").delete().eq("id", id)
-
-      if (error) {
-        throw error
-      }
-    } catch (error) {
-      logger.error(`Error deleting vaccination record with id ${id}`, error)
-      throw error
+      console.error("Error in getVaccinationCertificate:", error)
+      return null
     }
   },
 }

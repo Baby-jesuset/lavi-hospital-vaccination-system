@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Package, Calendar, ClipboardList, BarChart } fr
 
 const adminSections = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+  // Removed Doctor Management item
   { name: "Vaccinator Management", href: "/admin/vaccinator-management", icon: Users },
   { name: "Inventory Management", href: "/admin/inventory-management", icon: Package },
   { name: "Scheduling Management", href: "/admin/scheduling-management", icon: Calendar },

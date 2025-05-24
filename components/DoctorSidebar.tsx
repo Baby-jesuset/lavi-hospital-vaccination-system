@@ -9,9 +9,11 @@ const navItems = [
   { href: "/doctor/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/doctor/appointment-management", label: "Appointments", icon: Calendar },
   { href: "/doctor/vaccination-administration", label: "Vaccinations", icon: Syringe },
-  { href: "/doctor/patient-records", label: "Patient Records", icon: FileText },
+  { href: "/doctor/patient-records", label: "Patients", icon: FileText },
 ]
 
+// Note: This component is no longer used directly as we're using DashboardLayout
+// Keeping it for reference or potential future use
 export function DoctorSidebar() {
   const pathname = usePathname()
 

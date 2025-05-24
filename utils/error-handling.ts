@@ -4,7 +4,6 @@
 
 import type { PostgrestError } from "@supabase/supabase-js"
 import type { FieldPath, UseFormSetError } from "react-hook-form"
-import { logError } from "@/utils/logging"
 
 /**
  * Maps common Supabase error codes to user-friendly messages
@@ -108,7 +107,9 @@ export function handleFormErrors<T extends Record<string, any>>(error: unknown, 
 /**
  * Logs errors in a consistent format
  */
-export function logErrorAndReturn(context: string, error: unknown): string {
-  logError(context, "An error occurred", error)
-  return getErrorMessage(error)
+export function logError(context: string, error: unknown): void {
+  console.error(`[${context}] Error:`, error)
+
+  // In a production app, you might want to send this to a logging service
+  // Example: Sentry.captureException(error);
 }

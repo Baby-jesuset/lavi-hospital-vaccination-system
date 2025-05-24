@@ -6,8 +6,6 @@ export interface Database {
       appointments: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string | null
           patient_id: string
           vaccinator_id: string
           vaccine_id: string | null
@@ -15,39 +13,23 @@ export interface Database {
           appointment_time: string
           status: string
           notes: string | null
-          location_id: string | null
-          purpose: string | null
-          description: string | null
-          notify_by_email: boolean | null
-          notify_by_sms: boolean | null
-          notify_by_whatsapp: boolean | null
-          billing_status: string | null
-          insurance_details: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           patient_id: string
           vaccinator_id: string
           vaccine_id?: string | null
           appointment_date: string
           appointment_time: string
-          status: string
+          status?: string
           notes?: string | null
-          location_id?: string | null
-          purpose?: string | null
-          description?: string | null
-          notify_by_email?: boolean | null
-          notify_by_sms?: boolean | null
-          notify_by_whatsapp?: boolean | null
-          billing_status?: string | null
-          insurance_details?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           patient_id?: string
           vaccinator_id?: string
           vaccine_id?: string | null
@@ -55,14 +37,8 @@ export interface Database {
           appointment_time?: string
           status?: string
           notes?: string | null
-          location_id?: string | null
-          purpose?: string | null
-          description?: string | null
-          notify_by_email?: boolean | null
-          notify_by_sms?: boolean | null
-          notify_by_whatsapp?: boolean | null
-          billing_status?: string | null
-          insurance_details?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -88,72 +64,72 @@ export interface Database {
       departments: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string | null
           name: string
           description: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           name: string
           description?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           name?: string
           description?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
       inventory_items: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string | null
           vaccine_type_id: string
           manufacturer_id: string
-          supplier_id: string
-          storage_location_id: string
+          supplier_id: string | null
+          storage_location_id: string | null
           lot_number: string
           expiration_date: string
           quantity_available: number
           quantity_reserved: number
           status: string
           notes: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           vaccine_type_id: string
           manufacturer_id: string
-          supplier_id: string
-          storage_location_id: string
+          supplier_id?: string | null
+          storage_location_id?: string | null
           lot_number: string
           expiration_date: string
           quantity_available: number
-          quantity_reserved: number
-          status: string
+          quantity_reserved?: number
+          status?: string
           notes?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           vaccine_type_id?: string
           manufacturer_id?: string
-          supplier_id?: string
-          storage_location_id?: string
+          supplier_id?: string | null
+          storage_location_id?: string | null
           lot_number?: string
           expiration_date?: string
           quantity_available?: number
           quantity_reserved?: number
           status?: string
           notes?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -185,179 +161,153 @@ export interface Database {
       manufacturers: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string | null
           name: string
           contact_information: string | null
           website: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           name: string
           contact_information?: string | null
           website?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           name?: string
           contact_information?: string | null
           website?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
       patients: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string | null
-          auth_id: string
+          auth_id: string | null
           first_name: string
           last_name: string
-          email: string
-          phone: string
           date_of_birth: string
           gender: string | null
-          street: string | null
-          city: string | null
-          state: string | null
-          zip_code: string | null
-          country: string | null
-          medical_history: string | null
-          allergies: string | null
-          current_medications: string | null
+          email: string
+          phone: string | null
+          address: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
-          emergency_contact_relationship: string | null
-          status: string
-          registration_date: string
+          medical_history: string | null
+          allergies: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
-          auth_id: string
+          auth_id?: string | null
           first_name: string
           last_name: string
-          email: string
-          phone: string
           date_of_birth: string
           gender?: string | null
-          street?: string | null
-          city?: string | null
-          state?: string | null
-          zip_code?: string | null
-          country?: string | null
-          medical_history?: string | null
-          allergies?: string | null
-          current_medications?: string | null
+          email: string
+          phone?: string | null
+          address?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
-          emergency_contact_relationship?: string | null
-          status: string
-          registration_date: string
+          medical_history?: string | null
+          allergies?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
-          auth_id?: string
+          auth_id?: string | null
           first_name?: string
           last_name?: string
-          email?: string
-          phone?: string
           date_of_birth?: string
           gender?: string | null
-          street?: string | null
-          city?: string | null
-          state?: string | null
-          zip_code?: string | null
-          country?: string | null
-          medical_history?: string | null
-          allergies?: string | null
-          current_medications?: string | null
+          email?: string
+          phone?: string | null
+          address?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
-          emergency_contact_relationship?: string | null
-          status?: string
-          registration_date?: string
+          medical_history?: string | null
+          allergies?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
       storage_locations: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string | null
           name: string
           description: string | null
           temperature_range: string | null
           location_type: string
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           name: string
           description?: string | null
           temperature_range?: string | null
           location_type: string
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           name?: string
           description?: string | null
           temperature_range?: string | null
           location_type?: string
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
       suppliers: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string | null
           name: string
           contact_person: string | null
           email: string | null
           phone: string | null
           address: string | null
           notes: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           name: string
           contact_person?: string | null
           email?: string | null
           phone?: string | null
           address?: string | null
           notes?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           name?: string
           contact_person?: string | null
           email?: string | null
           phone?: string | null
           address?: string | null
           notes?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
       vaccination_records: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string | null
           patient_id: string
           vaccinator_id: string
           inventory_id: string
@@ -368,15 +318,13 @@ export interface Database {
           route: string | null
           notes: string | null
           certificate_id: string | null
-          status: string
-          lot_number: string | null
-          expiration_date: string | null
           certificate_url: string | null
+          status: string
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           patient_id: string
           vaccinator_id: string
           inventory_id: string
@@ -387,15 +335,13 @@ export interface Database {
           route?: string | null
           notes?: string | null
           certificate_id?: string | null
-          status: string
-          lot_number?: string | null
-          expiration_date?: string | null
           certificate_url?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           patient_id?: string
           vaccinator_id?: string
           inventory_id?: string
@@ -406,10 +352,10 @@ export interface Database {
           route?: string | null
           notes?: string | null
           certificate_id?: string | null
-          status?: string
-          lot_number?: string | null
-          expiration_date?: string | null
           certificate_url?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -441,81 +387,45 @@ export interface Database {
       vaccinators: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string | null
-          auth_id: string
+          auth_id: string | null
           first_name: string
           last_name: string
           email: string
-          phone: string
-          department_id: string
-          specialization: string | null
-          credentials: string | null
+          phone: string | null
           license_number: string
+          department_id: string | null
+          role: string | null
           status: string
-          available_monday: boolean
-          available_tuesday: boolean
-          available_wednesday: boolean
-          available_thursday: boolean
-          available_friday: boolean
-          available_saturday: boolean
-          available_sunday: boolean
-          work_hours_start: string | null
-          work_hours_end: string | null
-          max_daily_appointments: number | null
-          role: string
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
-          auth_id: string
+          auth_id?: string | null
           first_name: string
           last_name: string
           email: string
-          phone: string
-          department_id: string
-          specialization?: string | null
-          credentials?: string | null
+          phone?: string | null
           license_number: string
-          status: string
-          available_monday: boolean
-          available_tuesday: boolean
-          available_wednesday: boolean
-          available_thursday: boolean
-          available_friday: boolean
-          available_saturday: boolean
-          available_sunday: boolean
-          work_hours_start?: string | null
-          work_hours_end?: string | null
-          max_daily_appointments?: number | null
-          role: string
+          department_id?: string | null
+          role?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
-          auth_id?: string
+          auth_id?: string | null
           first_name?: string
           last_name?: string
           email?: string
-          phone?: string
-          department_id?: string
-          specialization?: string | null
-          credentials?: string | null
+          phone?: string | null
           license_number?: string
+          department_id?: string | null
+          role?: string | null
           status?: string
-          available_monday?: boolean
-          available_tuesday?: boolean
-          available_wednesday?: boolean
-          available_thursday?: boolean
-          available_friday?: boolean
-          available_saturday?: boolean
-          available_sunday?: boolean
-          work_hours_start?: string | null
-          work_hours_end?: string | null
-          max_daily_appointments?: number | null
-          role?: string
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -529,33 +439,33 @@ export interface Database {
       vaccine_types: {
         Row: {
           id: string
-          created_at: string
-          updated_at: string | null
           name: string
           description: string | null
           recommended_doses: number | null
           dose_interval_days: number | null
           target_disease: string
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           name: string
           description?: string | null
           recommended_doses?: number | null
           dose_interval_days?: number | null
           target_disease: string
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
-          created_at?: string
-          updated_at?: string | null
           name?: string
           description?: string | null
           recommended_doses?: number | null
           dose_interval_days?: number | null
           target_disease?: string
+          created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }

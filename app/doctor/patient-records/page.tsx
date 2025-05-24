@@ -102,7 +102,7 @@ export default function PatientRecords() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar>
-                            <AvatarImage src={patient.avatar} alt={patient.name} />
+                            <AvatarImage src={patient.avatar || "/placeholder.svg"} alt={patient.name} />
                             <AvatarFallback>{patient.name.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div className="font-medium">{patient.name}</div>
@@ -158,7 +158,7 @@ export default function PatientRecords() {
             <div className="space-y-4">
               <div className="flex items-center gap-4 pb-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={selectedPatient.avatar} alt={selectedPatient.name} />
+                  <AvatarImage src={selectedPatient.avatar || "/placeholder.svg"} alt={selectedPatient.name} />
                   <AvatarFallback>{selectedPatient.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>

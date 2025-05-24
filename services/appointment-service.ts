@@ -1,12 +1,9 @@
+import { supabase } from "@/lib/supabase"
 import type { Database } from "@/types/database.types"
-import { getSupabaseServer } from "@/lib/supabase-client"
-import { createLogger } from "@/utils/logging"
 
-const logger = createLogger("appointmentService")
-
-export type Appointment = Database["public"]["Tables"]["appointments"]["Row"]
-export type AppointmentInsert = Database["public"]["Tables"]["appointments"]["Insert"]
-export type AppointmentUpdate = Database["public"]["Tables"]["appointments"]["Update"]
+type Appointment = Database["public"]["Tables"]["appointments"]["Row"]
+type AppointmentInsert = Database["public"]["Tables"]["appointments"]["Insert"]
+type AppointmentUpdate = Database["public"]["Tables"]["appointments"]["Update"]
 
 // Extended appointment type with joined data
 export type AppointmentWithDetails = Appointment & {
@@ -18,6 +15,7 @@ export type AppointmentWithDetails = Appointment & {
   vaccinator: {
     first_name: string
     last_name: string
+    email: string
   }
   vaccine?: {
     lot_number: string
@@ -27,268 +25,124 @@ export type AppointmentWithDetails = Appointment & {
   }
 }
 
-// Define the appointment service
 export const AppointmentService = {
-  /**
-   * Get all appointments
-   */
-  async getAllAppointments() {
+  // Get all appointments with patient and vaccinator details
+  async getAllAppointments(): Promise<AppointmentWithDetails[]> {
     try {
-      const supabase = getSupabaseServer()
       const { data, error } = await supabase
         .from("appointments")
         .select(`
           *,
-          patients(id, first_name, last_name),
-          vaccinators(id, first_name, last_name)
+          patient:patient_id(id, first_name, last_name, email),
+          vaccinator:vaccinator_id(id, first_name, last_name, email),
+          vaccine:vaccine_id(id, lot_number, vaccine_type:vaccine_type_id(name))
         `)
         .order("appointment_date", { ascending: true })
+        .order("appointment_time", { ascending: true })
 
       if (error) {
+        console.error("Error fetching appointments:", error)
         throw error
       }
 
-      return data || []
+      return data as unknown as AppointmentWithDetails[]
     } catch (error) {
-      logger.error("Error fetching appointments", error)
+      console.error("Error in getAllAppointments:", error)
       throw error
     }
   },
 
-  /**
-   * Get appointments for a specific patient
-   */
-  async getAppointmentsByPatientId(patientId: string) {
+  // Get appointments for a specific patient
+  async getPatientAppointments(patientId: string): Promise<AppointmentWithDetails[]> {
     try {
-      const supabase = getSupabaseServer()
       const { data, error } = await supabase
         .from("appointments")
         .select(`
           *,
-          vaccinators(id, first_name, last_name, department_id, departments(id, name))
+          patient:patient_id(id, first_name, last_name, email),
+          vaccinator:vaccinator_id(id, first_name, last_name, email),
+          vaccine:vaccine_id(id, lot_number, vaccine_type:vaccine_type_id(name))
         `)
         .eq("patient_id", patientId)
         .order("appointment_date", { ascending: true })
+        .order("appointment_time", { ascending: true })
 
       if (error) {
+        console.error("Error fetching patient appointments:", error)
         throw error
       }
 
-      return data || []
+      return data as unknown as AppointmentWithDetails[]
     } catch (error) {
-      logger.error(`Error fetching appointments for patient ${patientId}`, error)
+      console.error("Error in getPatientAppointments:", error)
       throw error
     }
   },
 
-  /**
-   * Get appointments for a specific vaccinator
-   */
-  async getAppointmentsByVaccinatorId(vaccinatorId: string) {
+  // Get appointments for a specific vaccinator
+  async getVaccinatorAppointments(vaccinatorId: string): Promise<AppointmentWithDetails[]> {
     try {
-      const supabase = getSupabaseServer()
       const { data, error } = await supabase
         .from("appointments")
         .select(`
           *,
-          patients(id, first_name, last_name)
+          patient:patient_id(id, first_name, last_name, email),
+          vaccinator:vaccinator_id(id, first_name, last_name, email),
+          vaccine:vaccine_id(id, lot_number, vaccine_type:vaccine_type_id(name))
         `)
         .eq("vaccinator_id", vaccinatorId)
         .order("appointment_date", { ascending: true })
+        .order("appointment_time", { ascending: true })
 
       if (error) {
+        console.error("Error fetching vaccinator appointments:", error)
         throw error
       }
 
-      return data || []
+      return data as unknown as AppointmentWithDetails[]
     } catch (error) {
-      logger.error(`Error fetching appointments for vaccinator ${vaccinatorId}`, error)
+      console.error("Error in getVaccinatorAppointments:", error)
       throw error
     }
   },
 
-  /**
-   * Get an appointment by ID
-   */
-  async getAppointmentById(id: string) {
+  // Create a new appointment
+  async createAppointment(appointment: AppointmentInsert): Promise<Appointment> {
     try {
-      const supabase = getSupabaseServer()
-      const { data, error } = await supabase
-        .from("appointments")
-        .select(`
-          *,
-          patients(id, first_name, last_name),
-          vaccinators(id, first_name, last_name)
-        `)
-        .eq("id", id)
-        .single()
+      const { data, error } = await supabase.from("appointments").insert(appointment).select().single()
 
       if (error) {
+        console.error("Error creating appointment:", error)
         throw error
       }
 
       return data
     } catch (error) {
-      logger.error(`Error fetching appointment with id ${id}`, error)
+      console.error("Error in createAppointment:", error)
       throw error
     }
   },
 
-  /**
-   * Create a new appointment
-   */
-  async createAppointment(appointmentData: any) {
+  // Update an existing appointment
+  async updateAppointment(id: string, updates: AppointmentUpdate): Promise<Appointment> {
     try {
-      const supabase = getSupabaseServer()
-      const { data, error } = await supabase.from("appointments").insert([appointmentData]).select().single()
+      const { data, error } = await supabase.from("appointments").update(updates).eq("id", id).select().single()
 
       if (error) {
+        console.error("Error updating appointment:", error)
         throw error
       }
 
       return data
     } catch (error) {
-      logger.error("Error creating appointment", error)
+      console.error("Error in updateAppointment:", error)
       throw error
     }
   },
 
-  /**
-   * Update an existing appointment
-   */
-  async updateAppointment(id: string, appointmentData: any) {
-    try {
-      const supabase = getSupabaseServer()
-      const { data, error } = await supabase.from("appointments").update(appointmentData).eq("id", id).select().single()
-
-      if (error) {
-        throw error
-      }
-
-      return data
-    } catch (error) {
-      logger.error(`Error updating appointment with id ${id}`, error)
-      throw error
-    }
-  },
-
-  /**
-   * Delete an appointment
-   */
-  async deleteAppointment(id: string) {
-    try {
-      const supabase = getSupabaseServer()
-      const { error } = await supabase.from("appointments").delete().eq("id", id)
-
-      if (error) {
-        throw error
-      }
-    } catch (error) {
-      logger.error(`Error deleting appointment with id ${id}`, error)
-      throw error
-    }
-  },
-
-  /**
-   * Get available time slots for a vaccinator on a specific date
-   */
-  async getAvailableTimeSlots(vaccinatorId: string, date: string) {
-    try {
-      const supabase = getSupabaseServer()
-
-      // First, get the vaccinator's working hours and availability
-      const { data: vaccinator, error: vaccinatorError } = await supabase
-        .from("vaccinators")
-        .select("*")
-        .eq("id", vaccinatorId)
-        .single()
-
-      if (vaccinatorError) {
-        throw vaccinatorError
-      }
-
-      if (!vaccinator) {
-        throw new Error("Vaccinator not found")
-      }
-
-      // Check if the vaccinator is available on the selected day
-      const dayOfWeek = new Date(date).getDay() // 0 = Sunday, 1 = Monday, etc.
-      const availabilityFields = [
-        "available_sunday",
-        "available_monday",
-        "available_tuesday",
-        "available_wednesday",
-        "available_thursday",
-        "available_friday",
-        "available_saturday",
-      ]
-
-      const isAvailable = vaccinator[availabilityFields[dayOfWeek]]
-
-      if (!isAvailable) {
-        return []
-      }
-
-      // Get the vaccinator's working hours
-      const startTime = vaccinator.work_hours_start || "09:00"
-      const endTime = vaccinator.work_hours_end || "17:00"
-
-      // Get existing appointments for the vaccinator on the selected date
-      const { data: existingAppointments, error: appointmentsError } = await supabase
-        .from("appointments")
-        .select("appointment_time")
-        .eq("vaccinator_id", vaccinatorId)
-        .eq("appointment_date", date)
-
-      if (appointmentsError) {
-        throw appointmentsError
-      }
-
-      // Generate available time slots
-      const timeSlots = []
-      const [startHour, startMinute] = startTime.split(":").map(Number)
-      const [endHour, endMinute] = endTime.split(":").map(Number)
-
-      const startDateTime = new Date()
-      startDateTime.setHours(startHour, startMinute, 0, 0)
-
-      const endDateTime = new Date()
-      endDateTime.setHours(endHour, endMinute, 0, 0)
-
-      // Generate time slots in 30-minute intervals
-      const slotDuration = 30 // minutes
-      const maxAppointments = vaccinator.max_daily_appointments || 20
-
-      // Create a map of existing appointment times for quick lookup
-      const bookedTimes = new Set(existingAppointments?.map((a) => a.appointment_time) || [])
-
-      // Generate time slots
-      const currentTime = new Date(startDateTime)
-      while (currentTime < endDateTime && timeSlots.length < maxAppointments) {
-        const timeString = currentTime.toTimeString().substring(0, 5) // Format: HH:MM
-
-        // Check if this time slot is already booked
-        if (!bookedTimes.has(timeString)) {
-          timeSlots.push(timeString)
-        }
-
-        // Move to the next time slot
-        currentTime.setMinutes(currentTime.getMinutes() + slotDuration)
-      }
-
-      return timeSlots
-    } catch (error) {
-      logger.error(`Error getting available time slots for vaccinator ${vaccinatorId} on ${date}`, error)
-      throw error
-    }
-  },
-
-  /**
-   * Cancel an appointment
-   */
+  // Cancel an appointment
   async cancelAppointment(id: string): Promise<Appointment> {
     try {
-      const supabase = getSupabaseServer()
       const { data, error } = await supabase
         .from("appointments")
         .update({ status: "cancelled" })
@@ -297,16 +151,74 @@ export const AppointmentService = {
         .single()
 
       if (error) {
+        console.error("Error cancelling appointment:", error)
         throw error
       }
 
       return data
     } catch (error) {
-      logger.error(`Error cancelling appointment with id ${id}`, error)
+      console.error("Error in cancelAppointment:", error)
+      throw error
+    }
+  },
+
+  // Delete an appointment (typically not recommended, use cancel instead)
+  async deleteAppointment(id: string): Promise<void> {
+    try {
+      const { error } = await supabase.from("appointments").delete().eq("id", id)
+
+      if (error) {
+        console.error("Error deleting appointment:", error)
+        throw error
+      }
+    } catch (error) {
+      console.error("Error in deleteAppointment:", error)
+      throw error
+    }
+  },
+
+  // Get available time slots for a specific vaccinator on a specific date
+  async getAvailableTimeSlots(vaccinatorId: string, date: string): Promise<string[]> {
+    try {
+      // Get all appointments for the vaccinator on the specified date
+      const { data: existingAppointments, error } = await supabase
+        .from("appointments")
+        .select("appointment_time")
+        .eq("vaccinator_id", vaccinatorId)
+        .eq("appointment_date", date)
+        .not("status", "eq", "cancelled")
+
+      if (error) {
+        console.error("Error fetching existing appointments:", error)
+        throw error
+      }
+
+      // Define all possible time slots (e.g., 9:00 AM to 5:00 PM in 30-minute intervals)
+      const allTimeSlots = [
+        "09:00",
+        "09:30",
+        "10:00",
+        "10:30",
+        "11:00",
+        "11:30",
+        "13:00",
+        "13:30",
+        "14:00",
+        "14:30",
+        "15:00",
+        "15:30",
+        "16:00",
+        "16:30",
+      ]
+
+      // Filter out time slots that are already booked
+      const bookedTimeSlots = existingAppointments.map((app) => app.appointment_time)
+      const availableTimeSlots = allTimeSlots.filter((slot) => !bookedTimeSlots.includes(slot))
+
+      return availableTimeSlots
+    } catch (error) {
+      console.error("Error in getAvailableTimeSlots:", error)
       throw error
     }
   },
 }
-
-// Export as appointmentService for backward compatibility
-export const appointmentService = AppointmentService

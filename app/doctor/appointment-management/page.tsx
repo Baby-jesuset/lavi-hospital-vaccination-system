@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
 import { Plus, Search } from "lucide-react"
@@ -35,7 +34,7 @@ const initialAppointments = [
     date: "2024-02-23",
     time: "11:30 AM",
     type: "Follow-up",
-    status: "Completed",
+    status: "Scheduled",
   },
   {
     id: 3,
@@ -48,7 +47,7 @@ const initialAppointments = [
 ]
 
 export default function AppointmentManagement() {
-  const [appointments, setAppointments] = useState(initialAppointments)
+  const [appointments] = useState(initialAppointments)
   const [searchQuery, setSearchQuery] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
 
@@ -60,180 +59,132 @@ export default function AppointmentManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold">Appointments</h1>
-            <Badge variant="secondary">{appointments.length} Total</Badge>
-          </div>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> New Appointment
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Appointment</DialogTitle>
-                <DialogDescription>Schedule a new appointment for a patient.</DialogDescription>
-              </DialogHeader>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Appointments</h1>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" /> New Appointment
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Appointment</DialogTitle>
+              <DialogDescription>Schedule a new appointment for a patient.</DialogDescription>
+            </DialogHeader>
 
-              <div className="grid gap-4 py-4">
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select patient" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="alice">Alice Johnson</SelectItem>
+                    <SelectItem value="bob">Bob Smith</SelectItem>
+                    <SelectItem value="carol">Carol Williams</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select patient" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="alice">Alice Johnson</SelectItem>
-                      <SelectItem value="bob">Bob Smith</SelectItem>
-                      <SelectItem value="carol">Carol Williams</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Input type="date" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Input type="time" />
-                  </div>
+                  <Input type="date" />
                 </div>
                 <div className="grid gap-2">
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Appointment type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="vaccination">Vaccination</SelectItem>
-                      <SelectItem value="consultation">Consultation</SelectItem>
-                      <SelectItem value="followup">Follow-up</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input type="time" />
                 </div>
               </div>
-
-              <DialogFooter>
-                <Button type="submit">Schedule Appointment</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search patients..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 w-full"
-            />
-          </div>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Scheduled">Scheduled</SelectItem>
-              <SelectItem value="Completed">Completed</SelectItem>
-              <SelectItem value="Cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Appointments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{appointments.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{appointments.filter((a) => a.status === "Scheduled").length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{appointments.filter((a) => a.status === "Completed").length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Cancelled</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{appointments.filter((a) => a.status === "Cancelled").length}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Upcoming Appointments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <div className="overflow-x-auto max-h-[500px] scrollbar-thin">
-              <Table className="min-w-[800px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Patient</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAppointments.map((appointment) => (
-                    <TableRow key={appointment.id}>
-                      <TableCell className="font-medium">{appointment.patientName}</TableCell>
-                      <TableCell>{format(new Date(appointment.date), "MMM dd, yyyy")}</TableCell>
-                      <TableCell>{appointment.time}</TableCell>
-                      <TableCell>{appointment.type}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            appointment.status === "Scheduled"
-                              ? "default"
-                              : appointment.status === "Completed"
-                                ? "success"
-                                : "destructive"
-                          }
-                        >
-                          {appointment.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
-                            View
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            Edit
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="grid gap-2">
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Appointment type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vaccination">Vaccination</SelectItem>
+                    <SelectItem value="consultation">Consultation</SelectItem>
+                    <SelectItem value="followup">Follow-up</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+
+            <DialogFooter>
+              <Button type="submit">Schedule Appointment</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search patients..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 w-full"
+          />
+        </div>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="All Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="Scheduled">Scheduled</SelectItem>
+            <SelectItem value="Completed">Completed</SelectItem>
+            <SelectItem value="Cancelled">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Patient</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Time</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredAppointments.map((appointment) => (
+              <TableRow key={appointment.id}>
+                <TableCell className="font-medium">{appointment.patientName}</TableCell>
+                <TableCell>{format(new Date(appointment.date), "MMM dd, yyyy")}</TableCell>
+                <TableCell>{appointment.time}</TableCell>
+                <TableCell>{appointment.type}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      appointment.status === "Scheduled"
+                        ? "default"
+                        : appointment.status === "Completed"
+                          ? "success"
+                          : "destructive"
+                    }
+                  >
+                    {appointment.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <Button variant="outline" size="sm">
+                      View
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      Edit
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }

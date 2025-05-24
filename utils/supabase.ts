@@ -2,32 +2,33 @@
  * Supabase client utility
  */
 
-import { createLogger } from "@/utils/logging"
-import { getSupabaseBrowser } from "@/lib/supabase-client"
+import { createClient } from "@supabase/supabase-js"
+import type { Database } from "../types/supabase"
 
-const logger = createLogger("supabaseUtils")
+// Initialize the Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+
+// Create a single instance of the Supabase client to be used throughout the app
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 
 /**
  * Helper function to get the current authenticated user
  */
 export async function getCurrentUser() {
   try {
-    const supabase = getSupabaseBrowser()
-    logger.debug("Getting current user")
-
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser()
 
     if (error) {
-      logger.error("Error getting current user:", error)
-      return null
+      throw error
     }
 
     return user
   } catch (error) {
-    logger.error("Error getting current user:", error)
+    console.error("Error getting current user:", error)
     return null
   }
 }
@@ -43,18 +44,16 @@ export async function getCurrentUserProfile() {
       return null
     }
 
-    const supabase = getSupabaseBrowser()
     // Get the user's profile based on their role
     const { data: profile, error } = await supabase.from("profiles").select("*").eq("user_id", user.id).single()
 
     if (error) {
-      logger.error("Error getting user profile:", error)
-      return null
+      throw error
     }
 
     return profile
   } catch (error) {
-    logger.error("Error getting user profile:", error)
+    console.error("Error getting user profile:", error)
     return null
   }
 }
@@ -64,17 +63,15 @@ export async function getCurrentUserProfile() {
  */
 export async function signOut() {
   try {
-    const supabase = getSupabaseBrowser()
     const { error } = await supabase.auth.signOut()
 
     if (error) {
-      logger.error("Error signing out:", error)
-      return false
+      throw error
     }
 
     return true
   } catch (error) {
-    logger.error("Error signing out:", error)
+    console.error("Error signing out:", error)
     return false
   }
 }
