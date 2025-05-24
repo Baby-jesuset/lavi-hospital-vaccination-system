@@ -1,9 +1,9 @@
 // Simple client-side authentication utility
 
 // Types
-type UserRole = "admin" | "doctor" | "patient"
+export type UserRole = "admin" | "doctor" | "patient"
 
-interface AuthUser {
+export interface AuthUser {
   email: string
   role: UserRole
   isAuthenticated: boolean
@@ -11,6 +11,8 @@ interface AuthUser {
 
 // Sign in user
 export const signIn = (email: string, role: UserRole): void => {
+  if (typeof window === "undefined") return
+
   const user: AuthUser = {
     email,
     role,
@@ -22,6 +24,7 @@ export const signIn = (email: string, role: UserRole): void => {
 
 // Sign out user
 export const signOut = (): void => {
+  if (typeof window === "undefined") return
   localStorage.removeItem("authUser")
 }
 
@@ -46,18 +49,21 @@ export const getCurrentUser = (): AuthUser | null => {
 
 // Check if user is authenticated
 export const isAuthenticated = (): boolean => {
+  if (typeof window === "undefined") return false
   const user = getCurrentUser()
   return !!user?.isAuthenticated
 }
 
 // Check if user has specific role
 export const hasRole = (role: UserRole): boolean => {
+  if (typeof window === "undefined") return false
   const user = getCurrentUser()
   return !!user?.isAuthenticated && user.role === role
 }
 
 // Check if user is admin
 export const isAdmin = (): boolean => {
+  if (typeof window === "undefined") return false
   const user = getCurrentUser()
   return !!user?.isAuthenticated && user.role === "admin" && user.email === "admin@lavihospital.com"
 }
