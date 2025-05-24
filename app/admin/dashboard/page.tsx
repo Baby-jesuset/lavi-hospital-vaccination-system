@@ -7,46 +7,133 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
 
+// Define types locally to avoid import issues
+interface DashboardStats {
+  totalVaccines: number
+  activeDoctors: number
+  upcomingAppointments: number
+  stockAlerts: number
+}
+
+interface StockLevel {
+  name: string
+  percentage: number
+  available: number
+  color: string
+}
+
+interface Activity {
+  id: string
+  type: string
+  description: string
+  details: string
+  timestamp: string
+  color: string
+}
+
 export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const [stats, setStats] = useState<DashboardStats>({
+    totalVaccines: 0,
+    activeDoctors: 0,
+    upcomingAppointments: 0,
+    stockAlerts: 0,
+  })
+  const [stockLevels, setStockLevels] = useState<StockLevel[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
+
   const router = useRouter()
   const { toast } = useToast()
 
+  // Client-side authentication check
+  const checkAuthentication = () => {
+    if (typeof window === "undefined") return false
+
+    try {
+      const authUser = localStorage.getItem("authUser")
+      if (!authUser) return false
+
+      const user = JSON.parse(authUser)
+      return user.role === "admin" && user.email === "admin@lavihospital.com"
+    } catch (error) {
+      console.error("Auth check failed:", error)
+      return false
+    }
+  }
+
+  // Load dashboard data
+  const loadDashboardData = () => {
+    // Mock data - in production, this would come from API calls
+    setStats({
+      totalVaccines: 1247,
+      activeDoctors: 24,
+      upcomingAppointments: 156,
+      stockAlerts: 3,
+    })
+
+    setStockLevels([
+      { name: "COVID-19", percentage: 85, available: 425, color: "green" },
+      { name: "Influenza", percentage: 45, available: 180, color: "yellow" },
+      { name: "Hepatitis B", percentage: 15, available: 30, color: "red" },
+      { name: "MMR", percentage: 92, available: 368, color: "green" },
+    ])
+
+    setActivities([
+      {
+        id: "1",
+        type: "New patient registered",
+        description: "John Doe - Patient ID: P001247",
+        details: "",
+        timestamp: "2 hours ago",
+        color: "green",
+      },
+      {
+        id: "2",
+        type: "Vaccine administered",
+        description: "COVID-19 booster - Dr. Smith",
+        details: "",
+        timestamp: "3 hours ago",
+        color: "blue",
+      },
+      {
+        id: "3",
+        type: "Stock updated",
+        description: "Influenza vaccines restocked",
+        details: "",
+        timestamp: "5 hours ago",
+        color: "yellow",
+      },
+      {
+        id: "4",
+        type: "Low stock alert",
+        description: "Hepatitis B vaccines below threshold",
+        details: "",
+        timestamp: "6 hours ago",
+        color: "red",
+      },
+    ])
+  }
+
   useEffect(() => {
-    // Client-side only authentication check
-    const checkAuth = () => {
-      if (typeof window === "undefined") return
-
-      try {
-        const authUser = localStorage.getItem("authUser")
-        if (!authUser) {
-          router.push("/staff-signin")
-          return
-        }
-
-        const user = JSON.parse(authUser)
-        if (user.role !== "admin" || user.email !== "admin@lavihospital.com") {
-          toast({
-            variant: "destructive",
-            title: "Access Denied",
-            description: "You are not authorized to view this page.",
-          })
-          router.push("/staff-signin")
-          return
-        }
-
-        setIsAuthorized(true)
-      } catch (error) {
-        console.error("Auth check failed:", error)
+    const initializeDashboard = () => {
+      if (!checkAuthentication()) {
+        toast({
+          variant: "destructive",
+          title: "Access Denied",
+          description: "You are not authorized to view this page.",
+        })
         router.push("/staff-signin")
-      } finally {
-        setIsLoading(false)
+        return
       }
+
+      setIsAuthorized(true)
+      loadDashboardData()
+      setIsLoading(false)
     }
 
     // Delay to ensure client-side rendering
-    const timer = setTimeout(checkAuth, 100)
+    const timer = setTimeout(initializeDashboard, 100)
     return () => clearTimeout(timer)
   }, [router, toast])
 
@@ -88,7 +175,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-medium">Total Vaccines Administered</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,247</div>
+            <div className="text-2xl font-bold">{stats.totalVaccines.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">+12% from last month</p>
           </CardContent>
         </Card>
@@ -98,7 +185,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-medium">Active Doctors</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
+            <div className="text-2xl font-bold">{stats.activeDoctors}</div>
             <p className="text-xs text-muted-foreground">+2 new this month</p>
           </CardContent>
         </Card>
@@ -108,7 +195,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-medium">Upcoming Appointments</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">156</div>
+            <div className="text-2xl font-bold">{stats.upcomingAppointments}</div>
             <p className="text-xs text-muted-foreground">Next 7 days</p>
           </CardContent>
         </Card>
@@ -118,7 +205,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-medium">Stock Alerts</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">3</div>
+            <div className="text-2xl font-bold text-red-600">{stats.stockAlerts}</div>
             <p className="text-xs text-muted-foreground">Low stock items</p>
           </CardContent>
         </Card>
@@ -132,49 +219,37 @@ export default function AdminDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 border rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">COVID-19</span>
-                <span className="text-sm text-green-600 font-semibold">85%</span>
+            {stockLevels.map((stock) => (
+              <div key={stock.name} className="p-4 border rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">{stock.name}</span>
+                  <span
+                    className={`text-sm font-semibold ${
+                      stock.color === "green"
+                        ? "text-green-600"
+                        : stock.color === "yellow"
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                    }`}
+                  >
+                    {stock.percentage}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full ${
+                      stock.color === "green"
+                        ? "bg-green-600"
+                        : stock.color === "yellow"
+                          ? "bg-yellow-600"
+                          : "bg-red-600"
+                    }`}
+                    style={{ width: `${stock.percentage}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{stock.available} doses available</p>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-green-600 h-2 rounded-full" style={{ width: "85%" }}></div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">425 doses available</p>
-            </div>
-
-            <div className="p-4 border rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">Influenza</span>
-                <span className="text-sm text-yellow-600 font-semibold">45%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-yellow-600 h-2 rounded-full" style={{ width: "45%" }}></div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">180 doses available</p>
-            </div>
-
-            <div className="p-4 border rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">Hepatitis B</span>
-                <span className="text-sm text-red-600 font-semibold">15%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-red-600 h-2 rounded-full" style={{ width: "15%" }}></div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">30 doses available</p>
-            </div>
-
-            <div className="p-4 border rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">MMR</span>
-                <span className="text-sm text-green-600 font-semibold">92%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-green-600 h-2 rounded-full" style={{ width: "92%" }}></div>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">368 doses available</p>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -187,49 +262,28 @@ export default function AdminDashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium">New patient registered</p>
-                  <p className="text-sm text-muted-foreground">John Doe - Patient ID: P001247</p>
+            {activities.map((activity) => (
+              <div key={activity.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      activity.color === "green"
+                        ? "bg-green-500"
+                        : activity.color === "blue"
+                          ? "bg-blue-500"
+                          : activity.color === "yellow"
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
+                    }`}
+                  ></div>
+                  <div>
+                    <p className="font-medium">{activity.type}</p>
+                    <p className="text-sm text-muted-foreground">{activity.description}</p>
+                  </div>
                 </div>
+                <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
               </div>
-              <span className="text-xs text-muted-foreground">2 hours ago</span>
-            </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium">Vaccine administered</p>
-                  <p className="text-sm text-muted-foreground">COVID-19 booster - Dr. Smith</p>
-                </div>
-              </div>
-              <span className="text-xs text-muted-foreground">3 hours ago</span>
-            </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium">Stock updated</p>
-                  <p className="text-sm text-muted-foreground">Influenza vaccines restocked</p>
-                </div>
-              </div>
-              <span className="text-xs text-muted-foreground">5 hours ago</span>
-            </div>
-
-            <div className="flex items-center justify-between p-3 border rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium">Low stock alert</p>
-                  <p className="text-sm text-muted-foreground">Hepatitis B vaccines below threshold</p>
-                </div>
-              </div>
-              <span className="text-xs text-muted-foreground">6 hours ago</span>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>

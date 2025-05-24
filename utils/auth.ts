@@ -1,4 +1,7 @@
+"use client"
+
 // Simple client-side authentication utility
+// This file is marked as client-side only to avoid SSR issues
 
 // Types
 export type UserRole = "admin" | "doctor" | "patient"
@@ -9,7 +12,7 @@ export interface AuthUser {
   isAuthenticated: boolean
 }
 
-// Sign in user
+// Client-side only functions
 export const signIn = (email: string, role: UserRole): void => {
   if (typeof window === "undefined") return
 
@@ -22,13 +25,11 @@ export const signIn = (email: string, role: UserRole): void => {
   localStorage.setItem("authUser", JSON.stringify(user))
 }
 
-// Sign out user
 export const signOut = (): void => {
   if (typeof window === "undefined") return
   localStorage.removeItem("authUser")
 }
 
-// Get current user
 export const getCurrentUser = (): AuthUser | null => {
   if (typeof window === "undefined") {
     return null
@@ -47,21 +48,18 @@ export const getCurrentUser = (): AuthUser | null => {
   }
 }
 
-// Check if user is authenticated
 export const isAuthenticated = (): boolean => {
   if (typeof window === "undefined") return false
   const user = getCurrentUser()
   return !!user?.isAuthenticated
 }
 
-// Check if user has specific role
 export const hasRole = (role: UserRole): boolean => {
   if (typeof window === "undefined") return false
   const user = getCurrentUser()
   return !!user?.isAuthenticated && user.role === role
 }
 
-// Check if user is admin
 export const isAdmin = (): boolean => {
   if (typeof window === "undefined") return false
   const user = getCurrentUser()
