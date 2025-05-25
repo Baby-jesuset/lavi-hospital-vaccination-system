@@ -51,9 +51,8 @@ Before you begin, ensure you have the following installed:
 ### 1. Clone the Repository
 
 \`\`\`bash
-git clone https://github.com/your-username/lavi-hospital-system.git
-cd lavi-hospital-system
-\`\`\`
+git clone https://github.com/Baby-jesuset/lavi-hospital-vaccination-system.git
+cd lavi-hospital-vaccination-system 
 
 ### 2. Install Dependencies
 
@@ -393,7 +392,7 @@ npm run start
 
 ### Getting Help
 
-- Check the [Issues](https://github.com/your-username/lavi-hospital-system/issues) page
+- Check the [Issues](https://github.com/Baby-jesuset/lavi-hospital-vaccination-system/issues) page
 - Review Supabase documentation
 - Contact the development team
 
@@ -420,8 +419,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For support and questions:
 - Email: support@lavihospital.com
-- Documentation: [Project Wiki](https://github.com/your-username/lavi-hospital-system/wiki)
-- Issues: [GitHub Issues](https://github.com/your-username/lavi-hospital-system/issues)
+- Documentation: [Project Wiki](https://github.com/Baby-jesuset/lavi-hospital-vaccination-system/wiki)
+- Issues: [GitHub Issues](https://github.com/Baby-jesuset/lavi-hospital-vaccination-system/issues)
 
 ---
 
