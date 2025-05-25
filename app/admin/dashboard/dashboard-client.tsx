@@ -1,13 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
-import { Suspense } from "react"
-import AdminDashboardClientComponent from "./dashboard-client"
+
+// Dynamically import components that use browser APIs
+const AuthChecker = dynamic(() => import("./auth-checker"), {
+  ssr: false,
+  loading: () => <div className="animate-pulse">Checking authentication...</div>,
+})
 
 // Define types locally to avoid import issues
 interface DashboardStats {
@@ -33,49 +38,7 @@ interface Activity {
   color: string
 }
 
-// Server Component - handles the page structure
-export default function AdminDashboardPage() {
-  return (
-    <div className="min-h-screen bg-background">
-      <Suspense fallback={<AdminDashboardSkeleton />}>
-        <AdminDashboardClientComponent />
-      </Suspense>
-    </div>
-  )
-}
-
-// Loading skeleton component
-function AdminDashboardSkeleton() {
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="h-8 w-48 bg-gray-200 rounded animate-pulse"></div>
-        <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-6 border rounded-lg">
-            <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mb-2"></div>
-            <div className="h-8 w-16 bg-gray-200 rounded animate-pulse"></div>
-          </div>
-        ))}
-      </div>
-
-      <div className="space-y-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="p-6 border rounded-lg">
-            <div className="h-6 w-48 bg-gray-200 rounded animate-pulse mb-4"></div>
-            <div className="h-32 bg-gray-200 rounded animate-pulse"></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// Client Component - handles the dashboard logic
-function DashboardClientComponent() {
+export default function AdminDashboardClient() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [stats, setStats] = useState<DashboardStats>({
@@ -90,103 +53,97 @@ function DashboardClientComponent() {
   const router = useRouter()
   const { toast } = useToast()
 
-  // Client-side authentication check
-  const checkAuthentication = () => {
-    if (typeof window === "undefined") return false
-
+  // Load dashboard data from API
+  const loadDashboardData = async () => {
     try {
-      const authUser = localStorage.getItem("authUser")
-      if (!authUser) return false
-
-      const user = JSON.parse(authUser)
-      return user.role === "admin" && user.email === "admin@lavihospital.com"
-    } catch (error) {
-      console.error("Auth check failed:", error)
-      return false
-    }
-  }
-
-  // Load dashboard data
-  const loadDashboardData = () => {
-    // Mock data - in production, this would come from API calls
-    setStats({
-      totalVaccines: 1247,
-      activeDoctors: 24,
-      upcomingAppointments: 156,
-      stockAlerts: 3,
-    })
-
-    setStockLevels([
-      { name: "COVID-19", percentage: 85, available: 425, color: "green" },
-      { name: "Influenza", percentage: 45, available: 180, color: "yellow" },
-      { name: "Hepatitis B", percentage: 15, available: 30, color: "red" },
-      { name: "MMR", percentage: 92, available: 368, color: "green" },
-    ])
-
-    setActivities([
-      {
-        id: "1",
-        type: "New patient registered",
-        description: "John Doe - Patient ID: P001247",
-        details: "",
-        timestamp: "2 hours ago",
-        color: "green",
-      },
-      {
-        id: "2",
-        type: "Vaccine administered",
-        description: "COVID-19 booster - Dr. Smith",
-        details: "",
-        timestamp: "3 hours ago",
-        color: "blue",
-      },
-      {
-        id: "3",
-        type: "Stock updated",
-        description: "Influenza vaccines restocked",
-        details: "",
-        timestamp: "5 hours ago",
-        color: "yellow",
-      },
-      {
-        id: "4",
-        type: "Low stock alert",
-        description: "Hepatitis B vaccines below threshold",
-        details: "",
-        timestamp: "6 hours ago",
-        color: "red",
-      },
-    ])
-  }
-
-  useEffect(() => {
-    const initializeDashboard = () => {
-      if (!checkAuthentication()) {
-        toast({
-          variant: "destructive",
-          title: "Access Denied",
-          description: "You are not authorized to view this page.",
+      const response = await fetch("/api/dashboard/stats")
+      if (response.ok) {
+        const data = await response.json()
+        setStats({
+          totalVaccines: data.totalVaccines || 0,
+          activeDoctors: data.activeDoctors || 0,
+          upcomingAppointments: data.upcomingAppointments || 0,
+          stockAlerts: data.stockAlerts || 0,
         })
-        router.push("/staff-signin")
-        return
+        setStockLevels(data.stockLevels || [])
+        setActivities(data.recentActivities || [])
+      } else {
+        // Fallback to mock data if API fails
+        setStats({
+          totalVaccines: 1247,
+          activeDoctors: 24,
+          upcomingAppointments: 156,
+          stockAlerts: 3,
+        })
+        setStockLevels([
+          { name: "COVID-19", percentage: 85, available: 425, color: "green" },
+          { name: "Influenza", percentage: 45, available: 180, color: "yellow" },
+          { name: "Hepatitis B", percentage: 15, available: 30, color: "red" },
+          { name: "MMR", percentage: 92, available: 368, color: "green" },
+        ])
+        setActivities([
+          {
+            id: "1",
+            type: "New patient registered",
+            description: "John Doe - Patient ID: P001247",
+            details: "",
+            timestamp: "2 hours ago",
+            color: "green",
+          },
+          {
+            id: "2",
+            type: "Vaccine administered",
+            description: "COVID-19 booster - Dr. Smith",
+            details: "",
+            timestamp: "3 hours ago",
+            color: "blue",
+          },
+        ])
       }
-
-      setIsAuthorized(true)
-      loadDashboardData()
-      setIsLoading(false)
+    } catch (error) {
+      console.error("Failed to load dashboard data:", error)
+      // Use fallback data
+      setStats({
+        totalVaccines: 1247,
+        activeDoctors: 24,
+        upcomingAppointments: 156,
+        stockAlerts: 3,
+      })
     }
+  }
 
-    // Delay to ensure client-side rendering
-    const timer = setTimeout(initializeDashboard, 100)
-    return () => clearTimeout(timer)
-  }, [router, toast])
+  const handleAuthSuccess = () => {
+    setIsAuthorized(true)
+    loadDashboardData()
+    setIsLoading(false)
+  }
+
+  const handleAuthFailure = () => {
+    toast({
+      variant: "destructive",
+      title: "Access Denied",
+      description: "You are not authorized to view this page.",
+    })
+    router.push("/staff-signin")
+  }
 
   if (isLoading) {
-    return null
+    return (
+      <div className="container mx-auto p-6">
+        <AuthChecker onAuthSuccess={handleAuthSuccess} onAuthFailure={handleAuthFailure} />
+      </div>
+    )
   }
 
   if (!isAuthorized) {
-    return null
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Redirecting...</h2>
+          <p className="text-muted-foreground">Please wait while we verify your credentials.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
