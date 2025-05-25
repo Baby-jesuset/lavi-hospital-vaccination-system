@@ -25,6 +25,9 @@ import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 
+// Force dynamic rendering to prevent prerender errors
+export const dynamic = "force-dynamic"
+
 // Update the inventory form schema to match the Supabase table structure
 const inventoryFormSchema = z.object({
   // Primary key
