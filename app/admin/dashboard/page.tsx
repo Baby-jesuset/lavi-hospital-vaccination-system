@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/use-toast"
 // Force dynamic rendering to bypass prerender issues
 export const dynamic = "force-dynamic"
 
-// Define types locally to avoid import issues
+// Define types locally
 interface DashboardStats {
   totalVaccines: number
   activeDoctors: number
@@ -29,7 +29,6 @@ interface Activity {
   id: string
   type: string
   description: string
-  details: string
   timestamp: string
   color: string
 }
@@ -38,105 +37,87 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [stats, setStats] = useState<DashboardStats>({
-    totalVaccines: 0,
-    activeDoctors: 0,
-    upcomingAppointments: 0,
-    stockAlerts: 0,
+    totalVaccines: 1247,
+    activeDoctors: 24,
+    upcomingAppointments: 156,
+    stockAlerts: 3,
   })
-  const [stockLevels, setStockLevels] = useState<StockLevel[]>([])
-  const [activities, setActivities] = useState<Activity[]>([])
+  const [stockLevels, setStockLevels] = useState<StockLevel[]>([
+    { name: "COVID-19", percentage: 85, available: 425, color: "green" },
+    { name: "Influenza", percentage: 45, available: 180, color: "yellow" },
+    { name: "Hepatitis B", percentage: 15, available: 30, color: "red" },
+    { name: "MMR", percentage: 92, available: 368, color: "green" },
+  ])
+  const [activities, setActivities] = useState<Activity[]>([
+    {
+      id: "1",
+      type: "New patient registered",
+      description: "John Doe - Patient ID: P001247",
+      timestamp: "2 hours ago",
+      color: "green",
+    },
+    {
+      id: "2",
+      type: "Vaccine administered",
+      description: "COVID-19 booster - Dr. Smith",
+      timestamp: "3 hours ago",
+      color: "blue",
+    },
+    {
+      id: "3",
+      type: "Stock updated",
+      description: "Influenza vaccines restocked",
+      timestamp: "5 hours ago",
+      color: "yellow",
+    },
+    {
+      id: "4",
+      type: "Low stock alert",
+      description: "Hepatitis B vaccines below threshold",
+      timestamp: "6 hours ago",
+      color: "red",
+    },
+  ])
 
   const router = useRouter()
   const { toast } = useToast()
 
-  // Client-side authentication check
-  const checkAuthentication = () => {
-    if (typeof window === "undefined") return false
-
-    try {
-      const authUser = localStorage.getItem("authUser")
-      if (!authUser) return false
-
-      const user = JSON.parse(authUser)
-      return user.role === "admin" && user.email === "admin@lavihospital.com"
-    } catch (error) {
-      console.error("Auth check failed:", error)
-      return false
-    }
-  }
-
-  // Load dashboard data
-  const loadDashboardData = () => {
-    // Mock data - in production, this would come from API calls
-    setStats({
-      totalVaccines: 1247,
-      activeDoctors: 24,
-      upcomingAppointments: 156,
-      stockAlerts: 3,
-    })
-
-    setStockLevels([
-      { name: "COVID-19", percentage: 85, available: 425, color: "green" },
-      { name: "Influenza", percentage: 45, available: 180, color: "yellow" },
-      { name: "Hepatitis B", percentage: 15, available: 30, color: "red" },
-      { name: "MMR", percentage: 92, available: 368, color: "green" },
-    ])
-
-    setActivities([
-      {
-        id: "1",
-        type: "New patient registered",
-        description: "John Doe - Patient ID: P001247",
-        details: "",
-        timestamp: "2 hours ago",
-        color: "green",
-      },
-      {
-        id: "2",
-        type: "Vaccine administered",
-        description: "COVID-19 booster - Dr. Smith",
-        details: "",
-        timestamp: "3 hours ago",
-        color: "blue",
-      },
-      {
-        id: "3",
-        type: "Stock updated",
-        description: "Influenza vaccines restocked",
-        details: "",
-        timestamp: "5 hours ago",
-        color: "yellow",
-      },
-      {
-        id: "4",
-        type: "Low stock alert",
-        description: "Hepatitis B vaccines below threshold",
-        details: "",
-        timestamp: "6 hours ago",
-        color: "red",
-      },
-    ])
-  }
-
   useEffect(() => {
-    const initializeDashboard = () => {
-      if (!checkAuthentication()) {
-        toast({
-          variant: "destructive",
-          title: "Access Denied",
-          description: "You are not authorized to view this page.",
-        })
-        router.push("/staff-signin")
-        return
-      }
+    const checkAuth = () => {
+      if (typeof window === "undefined") return
 
-      setIsAuthorized(true)
-      loadDashboardData()
-      setIsLoading(false)
+      try {
+        const authUser = localStorage.getItem("authUser")
+        if (!authUser) {
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: "You are not authorized to view this page.",
+          })
+          router.push("/staff-signin")
+          return
+        }
+
+        const user = JSON.parse(authUser)
+        if (user.role !== "admin" || user.email !== "admin@lavihospital.com") {
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: "You are not authorized to view this page.",
+          })
+          router.push("/staff-signin")
+          return
+        }
+
+        setIsAuthorized(true)
+        setIsLoading(false)
+      } catch (error) {
+        console.error("Auth check failed:", error)
+        router.push("/staff-signin")
+      }
     }
 
-    // Delay to ensure client-side rendering
-    const timer = setTimeout(initializeDashboard, 100)
+    const timer = setTimeout(checkAuth, 100)
     return () => clearTimeout(timer)
   }, [router, toast])
 
