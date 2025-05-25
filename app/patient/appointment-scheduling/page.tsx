@@ -20,6 +20,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { format, parseISO } from "date-fns"
 import { Skeleton } from "@/components/ui/skeleton"
 
+// Force dynamic rendering to prevent prerender errors
+export const dynamic = "force-dynamic"
+
 // Define the patient appointment form schema with Zod
 const patientAppointmentFormSchema = z.object({
   vaccinatorId: z.string().min(1, "Please select a doctor"),
