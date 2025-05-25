@@ -24,34 +24,52 @@ import { FormSection } from "@/components/forms/FormSection"
 import { useToast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Textarea } from "@/components/ui/textarea"
 
 // Force dynamic rendering to prevent prerender errors
 export const dynamic = "force-dynamic"
 
 // Define the vaccinator form schema
 const vaccinatorFormSchema = z.object({
+  image_url: z.string().optional(),
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
   email: z.string().email("Please enter a valid email address"),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zip: z.string().optional(),
   license_number: z.string().min(1, "License number is required"),
   specialization: z.string().min(1, "Specialization is required"),
   department: z.string().min(1, "Department is required"),
+  availability: z.string().optional(),
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   status: z.enum(["active", "inactive"]).default("active"),
 })
 
 type VaccinatorFormValues = z.infer<typeof vaccinatorFormSchema>
 
 // Define the vaccinator structure
-interface Vaccinator {
+interface StaffMember {
   id: string
+  image_url: string | null
   first_name: string
   last_name: string
   email: string
   phone: string
+  address: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
   license_number: string
   specialization: string
   department: string
+  availability: string | null
+  username: string
+  password?: string
   status: string
   created_at: string
   updated_at: string
@@ -63,20 +81,29 @@ export default function VaccinatorManagement() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [vaccinators, setVaccinators] = useState<Vaccinator[]>([])
+  const [vaccinators, setVaccinators] = useState<StaffMember[]>([])
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
   // Initialize the form
   const form = useForm<VaccinatorFormValues>({
     resolver: zodResolver(vaccinatorFormSchema),
     defaultValues: {
+      image_url: "",
       first_name: "",
       last_name: "",
       email: "",
       phone: "",
+      address: "",
+      city: "",
+      state: "",
+      zip: "",
       license_number: "",
       specialization: "",
       department: "",
+      availability: "",
+      username: "",
+      password: "",
       status: "active",
     },
   })
@@ -85,61 +112,40 @@ export default function VaccinatorManagement() {
   const fetchVaccinators = async () => {
     try {
       setIsLoading(true)
+      setError(null)
       console.log("Fetching vaccinators...")
 
-      // Sample data for demonstration
-      const sampleVaccinators: Vaccinator[] = [
-        {
-          id: "1",
-          first_name: "Dr. Sarah",
-          last_name: "Johnson",
-          email: "sarah.johnson@lavihospital.com",
-          phone: "+1 (555) 123-4567",
-          license_number: "MD12345",
-          specialization: "Internal Medicine",
-          department: "General Medicine",
-          status: "active",
-          created_at: "2024-01-15T10:00:00Z",
-          updated_at: "2024-01-15T10:00:00Z",
-        },
-        {
-          id: "2",
-          first_name: "Dr. Michael",
-          last_name: "Chen",
-          email: "michael.chen@lavihospital.com",
-          phone: "+1 (555) 987-6543",
-          license_number: "MD67890",
-          specialization: "Pediatrics",
-          department: "Pediatric Medicine",
-          status: "active",
-          created_at: "2024-01-20T14:30:00Z",
-          updated_at: "2024-01-20T14:30:00Z",
-        },
-        {
-          id: "3",
-          first_name: "Dr. Emily",
-          last_name: "Rodriguez",
-          email: "emily.rodriguez@lavihospital.com",
-          phone: "+1 (555) 456-7890",
-          license_number: "MD11111",
-          specialization: "Family Medicine",
-          department: "Family Practice",
-          status: "inactive",
-          created_at: "2024-02-01T09:15:00Z",
-          updated_at: "2024-02-01T09:15:00Z",
-        },
-      ]
+      const response = await fetch("/api/staff/list")
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      setVaccinators(sampleVaccinators)
+      const result = await response.json()
+      console.log("API Response:", result)
+
+      // Handle different response formats
+      let staffData: StaffMember[] = []
+
+      if (result.data && Array.isArray(result.data)) {
+        staffData = result.data
+      } else if (Array.isArray(result)) {
+        staffData = result
+      } else {
+        console.warn("Unexpected API response format:", result)
+        staffData = []
+      }
+
+      setVaccinators(staffData)
     } catch (error: any) {
       console.error("Error fetching vaccinators:", error)
+      setError(error.message || "Failed to load vaccinator data")
       toast({
         title: "Error",
         description: "Failed to load vaccinator data. Please refresh the page.",
         variant: "destructive",
       })
+      // Set empty array on error to prevent filter issues
+      setVaccinators([])
     } finally {
       setIsLoading(false)
     }
@@ -149,47 +155,43 @@ export default function VaccinatorManagement() {
     fetchVaccinators()
   }, [])
 
-  // Filter vaccinators based on search query and status
-  const filteredVaccinators = vaccinators.filter((vaccinator) => {
-    const matchesSearch =
-      vaccinator.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vaccinator.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vaccinator.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      vaccinator.specialization.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter vaccinators based on search query and status - with safety checks
+  const filteredVaccinators = Array.isArray(vaccinators)
+    ? vaccinators.filter((vaccinator) => {
+        const matchesSearch =
+          vaccinator.first_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          vaccinator.last_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          vaccinator.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          vaccinator.specialization?.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchesStatus = filterStatus === "all" || vaccinator.status === filterStatus
+        const matchesStatus = filterStatus === "all" || vaccinator.status === filterStatus
 
-    return matchesSearch && matchesStatus
-  })
+        return matchesSearch && matchesStatus
+      })
+    : []
 
   // Handle form submission
   async function onSubmit(values: VaccinatorFormValues) {
     setIsSubmitting(true)
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const response = await fetch("/api/staff", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
       toast({
         title: "Vaccinator added successfully",
         description: `Dr. ${values.first_name} ${values.last_name} has been added to the system.`,
       })
 
-      // Add to local state for demo
-      const newVaccinator: Vaccinator = {
-        id: Date.now().toString(),
-        first_name: values.first_name,
-        last_name: values.last_name,
-        email: values.email,
-        phone: values.phone,
-        license_number: values.license_number,
-        specialization: values.specialization,
-        department: values.department,
-        status: values.status,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-
-      setVaccinators((prev) => [newVaccinator, ...prev])
+      fetchVaccinators() // Refresh the vaccinator list
       setDialogOpen(false)
       form.reset()
     } catch (error: any) {
@@ -206,7 +208,7 @@ export default function VaccinatorManagement() {
 
   // Helper function to get badge variant based on status
   const getStatusBadgeVariant = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "active":
         return "default"
       case "inactive":
@@ -218,8 +220,14 @@ export default function VaccinatorManagement() {
 
   // Helper function to format status for display
   const formatStatus = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1)
+    return status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown"
   }
+
+  // Safe calculation for stats
+  const activeCount = Array.isArray(vaccinators) ? vaccinators.filter((v) => v.status === "active").length : 0
+  const inactiveCount = Array.isArray(vaccinators) ? vaccinators.filter((v) => v.status === "inactive").length : 0
+  const totalCount = Array.isArray(vaccinators) ? vaccinators.length : 0
+  const specializationCount = Array.isArray(vaccinators) ? new Set(vaccinators.map((v) => v.specialization)).size : 0
 
   return (
     <div className="space-y-6">
@@ -309,6 +317,16 @@ export default function VaccinatorManagement() {
                     </TableCell>
                   </TableRow>
                 ))
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8">
+                  <div className="text-red-500 mb-2">Error loading data</div>
+                  <p className="text-gray-500 mb-4">{error}</p>
+                  <Button onClick={fetchVaccinators} variant="outline">
+                    Try Again
+                  </Button>
+                </TableCell>
+              </TableRow>
             ) : filteredVaccinators.length > 0 ? (
               filteredVaccinators.map((vaccinator) => (
                 <TableRow key={vaccinator.id}>
@@ -341,8 +359,11 @@ export default function VaccinatorManagement() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-4">
-                  No vaccinators found
+                <TableCell colSpan={7} className="text-center py-8">
+                  <div className="text-gray-500">No vaccinators found</div>
+                  {searchQuery && (
+                    <p className="text-sm text-gray-400 mt-2">Try adjusting your search or filter criteria</p>
+                  )}
                 </TableCell>
               </TableRow>
             )}
@@ -352,7 +373,7 @@ export default function VaccinatorManagement() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          Showing {filteredVaccinators.length} of {vaccinators.length} vaccinators
+          Showing {filteredVaccinators.length} of {totalCount} vaccinators
         </p>
         <div className="space-x-2">
           <Button variant="outline" size="sm" disabled>
@@ -378,25 +399,19 @@ export default function VaccinatorManagement() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {vaccinators.filter((v) => v.status === "active").length}
-                </div>
+                <div className="text-2xl font-bold text-green-600">{activeCount}</div>
                 <div className="text-sm text-gray-500">Active</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-600">
-                  {vaccinators.filter((v) => v.status === "inactive").length}
-                </div>
+                <div className="text-2xl font-bold text-gray-600">{inactiveCount}</div>
                 <div className="text-sm text-gray-500">Inactive</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{vaccinators.length}</div>
+                <div className="text-2xl font-bold text-blue-600">{totalCount}</div>
                 <div className="text-sm text-gray-500">Total Staff</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">
-                  {new Set(vaccinators.map((v) => v.specialization)).size}
-                </div>
+                <div className="text-2xl font-bold text-purple-600">{specializationCount}</div>
                 <div className="text-sm text-gray-500">Specializations</div>
               </div>
             </div>
@@ -415,15 +430,42 @@ export default function VaccinatorManagement() {
 
       {/* Add New Vaccinator Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Vaccinator</DialogTitle>
-            <DialogDescription>Enter the details for the new vaccinator to add to the system.</DialogDescription>
+            <DialogTitle>Add New Staff Member</DialogTitle>
+            <DialogDescription>Enter the details for the new staff member to add to the system.</DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormSection title="Personal Information">
+              <FormSection title="Profile Image">
+                <div className="flex items-center space-x-4">
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={form.getValues("image_url") || "/placeholder-avatar.jpg"} />
+                    <AvatarFallback>
+                      {form.getValues("first_name") ? form.getValues("first_name")?.charAt(0) : "U"}
+                      {form.getValues("last_name") ? form.getValues("last_name")?.charAt(0) : "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <FormField
+                      control={form.control}
+                      name="image_url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Image URL</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter image URL" disabled={isSubmitting} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              </FormSection>
+
+              <FormSection title="Basic Information">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -452,7 +494,9 @@ export default function VaccinatorManagement() {
                     )}
                   />
                 </div>
+              </FormSection>
 
+              <FormSection title="Contact Information">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -480,6 +524,64 @@ export default function VaccinatorManagement() {
                         <FormLabel>Phone</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., +1 (555) 123-4567" disabled={isSubmitting} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Address</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 123 Main St" disabled={isSubmitting} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Anytown" disabled={isSubmitting} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., CA" disabled={isSubmitting} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="zip"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Zip Code</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., 90210" disabled={isSubmitting} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -576,6 +678,53 @@ export default function VaccinatorManagement() {
                     )}
                   />
                 </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="availability"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Availability</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Enter availability details" disabled={isSubmitting} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </FormSection>
+
+              <FormSection title="Security">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter username" disabled={isSubmitting} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Enter password" disabled={isSubmitting} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </FormSection>
 
               <DialogFooter>
@@ -605,10 +754,10 @@ export default function VaccinatorManagement() {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         ></path>
                       </svg>
-                      Adding Vaccinator...
+                      Adding Staff Member...
                     </>
                   ) : (
-                    "Add Vaccinator"
+                    "Add Staff Member"
                   )}
                 </Button>
               </DialogFooter>

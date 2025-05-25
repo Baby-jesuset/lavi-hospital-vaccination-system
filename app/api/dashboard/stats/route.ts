@@ -1,55 +1,96 @@
 import { NextResponse } from "next/server"
+import { createServerClient } from "@/lib/supabase"
 
 export async function GET() {
   try {
-    // Mock data for dashboard stats
-    // In production, this would query your database
+    const supabase = createServerClient()
+
+    // Get total vaccines administered
+    const { data: vaccinations, error: vaccinationError } = await supabase.from("vaccination_records").select("id")
+
+    // Get active doctors count
+    const { data: doctors, error: doctorError } = await supabase
+      .from("staff")
+      .select("id")
+      .eq("role", "doctor")
+      .eq("status", "active")
+
+    // Get upcoming appointments (next 7 days)
+    const nextWeek = new Date()
+    nextWeek.setDate(nextWeek.getDate() + 7)
+
+    const { data: appointments, error: appointmentError } = await supabase
+      .from("appointments")
+      .select("id")
+      .gte("appointment_date", new Date().toISOString())
+      .lte("appointment_date", nextWeek.toISOString())
+
+    // Get stock alerts (vaccines with quantity < 50)
+    const { data: lowStock, error: stockError } = await supabase.from("inventory").select("id").lt("quantity", 50)
+
+    // Get stock levels
+    const { data: inventory, error: inventoryError } = await supabase.from("inventory").select("vaccine_name, quantity")
+
+    // Calculate stock levels with percentages (assuming max capacity of 500 per vaccine)
+    const stockLevels =
+      inventory?.map((item) => {
+        const percentage = Math.min((item.quantity / 500) * 100, 100)
+        let color = "green"
+        if (percentage < 30) color = "red"
+        else if (percentage < 60) color = "yellow"
+
+        return {
+          name: item.vaccine_name,
+          percentage: Math.round(percentage),
+          available: item.quantity,
+          color,
+        }
+      }) || []
+
+    // Get recent activities (last 10 vaccination records)
+    const { data: recentVaccinations, error: recentError } = await supabase
+      .from("vaccination_records")
+      .select(`
+        id,
+        created_at,
+        vaccine_name,
+        patients(first_name, last_name),
+        staff(first_name, last_name)
+      `)
+      .order("created_at", { ascending: false })
+      .limit(10)
+
+    const activities =
+      recentVaccinations?.map((record, index) => ({
+        id: record.id.toString(),
+        type: "Vaccine administered",
+        description: `${record.vaccine_name} - ${record.patients?.first_name} ${record.patients?.last_name} by Dr. ${record.staff?.first_name} ${record.staff?.last_name}`,
+        timestamp: new Date(record.created_at).toLocaleString(),
+        color: "blue",
+      })) || []
+
     const stats = {
-      totalVaccines: 1247,
-      activeDoctors: 24,
-      upcomingAppointments: 156,
-      stockAlerts: 3,
-      stockLevels: [
-        { name: "COVID-19", percentage: 85, available: 425, color: "green" },
-        { name: "Influenza", percentage: 45, available: 180, color: "yellow" },
-        { name: "Hepatitis B", percentage: 15, available: 30, color: "red" },
-        { name: "MMR", percentage: 92, available: 368, color: "green" },
-      ],
-      recentActivities: [
-        {
-          id: "1",
-          type: "New patient registered",
-          description: "John Doe - Patient ID: P001247",
-          timestamp: "2 hours ago",
-          color: "green",
-        },
-        {
-          id: "2",
-          type: "Vaccine administered",
-          description: "COVID-19 booster - Dr. Smith",
-          timestamp: "3 hours ago",
-          color: "blue",
-        },
-        {
-          id: "3",
-          type: "Stock updated",
-          description: "Influenza vaccines restocked",
-          timestamp: "5 hours ago",
-          color: "yellow",
-        },
-        {
-          id: "4",
-          type: "Low stock alert",
-          description: "Hepatitis B vaccines below threshold",
-          timestamp: "6 hours ago",
-          color: "red",
-        },
-      ],
+      totalVaccines: vaccinations?.length || 0,
+      activeDoctors: doctors?.length || 0,
+      upcomingAppointments: appointments?.length || 0,
+      stockAlerts: lowStock?.length || 0,
+      stockLevels,
+      recentActivities: activities,
     }
 
     return NextResponse.json(stats)
   } catch (error) {
     console.error("Error fetching dashboard stats:", error)
-    return NextResponse.json({ error: "Failed to fetch dashboard statistics" }, { status: 500 })
+    return NextResponse.json(
+      {
+        totalVaccines: 0,
+        activeDoctors: 0,
+        upcomingAppointments: 0,
+        stockAlerts: 0,
+        stockLevels: [],
+        recentActivities: [],
+      },
+      { status: 500 },
+    )
   }
 }

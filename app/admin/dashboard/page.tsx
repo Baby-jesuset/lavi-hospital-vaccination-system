@@ -10,137 +10,91 @@ import { useToast } from "@/components/ui/use-toast"
 // Force dynamic rendering to bypass prerender issues
 export const dynamic = "force-dynamic"
 
-// Define types locally
-interface DashboardStats {
+interface DashboardData {
   totalVaccines: number
   activeDoctors: number
   upcomingAppointments: number
   stockAlerts: number
-}
-
-interface StockLevel {
-  name: string
-  percentage: number
-  available: number
-  color: string
-}
-
-interface Activity {
-  id: string
-  type: string
-  description: string
-  timestamp: string
-  color: string
+  stockLevels: Array<{
+    name: string
+    percentage: number
+    available: number
+    color: string
+  }>
+  recentActivities: Array<{
+    id: string
+    type: string
+    description: string
+    timestamp: string
+    color: string
+  }>
 }
 
 export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
-  const [stats, setStats] = useState<DashboardStats>({
-    totalVaccines: 1247,
-    activeDoctors: 24,
-    upcomingAppointments: 156,
-    stockAlerts: 3,
+  const [data, setData] = useState<DashboardData>({
+    totalVaccines: 0,
+    activeDoctors: 0,
+    upcomingAppointments: 0,
+    stockAlerts: 0,
+    stockLevels: [],
+    recentActivities: [],
   })
-  const [stockLevels, setStockLevels] = useState<StockLevel[]>([
-    { name: "COVID-19", percentage: 85, available: 425, color: "green" },
-    { name: "Influenza", percentage: 45, available: 180, color: "yellow" },
-    { name: "Hepatitis B", percentage: 15, available: 30, color: "red" },
-    { name: "MMR", percentage: 92, available: 368, color: "green" },
-  ])
-  const [activities, setActivities] = useState<Activity[]>([
-    {
-      id: "1",
-      type: "New patient registered",
-      description: "John Doe - Patient ID: P001247",
-      timestamp: "2 hours ago",
-      color: "green",
-    },
-    {
-      id: "2",
-      type: "Vaccine administered",
-      description: "COVID-19 booster - Dr. Smith",
-      timestamp: "3 hours ago",
-      color: "blue",
-    },
-    {
-      id: "3",
-      type: "Stock updated",
-      description: "Influenza vaccines restocked",
-      timestamp: "5 hours ago",
-      color: "yellow",
-    },
-    {
-      id: "4",
-      type: "Low stock alert",
-      description: "Hepatitis B vaccines below threshold",
-      timestamp: "6 hours ago",
-      color: "red",
-    },
-  ])
 
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuthAndLoadData = async () => {
       if (typeof window === "undefined") return
 
       try {
         const authUser = localStorage.getItem("authUser")
         if (!authUser) {
-          toast({
-            variant: "destructive",
-            title: "Access Denied",
-            description: "You are not authorized to view this page.",
-          })
           router.push("/staff-signin")
           return
         }
 
         const user = JSON.parse(authUser)
         if (user.role !== "admin" || user.email !== "admin@lavihospital.com") {
-          toast({
-            variant: "destructive",
-            title: "Access Denied",
-            description: "You are not authorized to view this page.",
-          })
           router.push("/staff-signin")
           return
         }
 
         setIsAuthorized(true)
-        setIsLoading(false)
+
+        // Fetch dashboard data
+        const response = await fetch("/api/dashboard/stats")
+        if (response.ok) {
+          const dashboardData = await response.json()
+          setData(dashboardData)
+        }
       } catch (error) {
-        console.error("Auth check failed:", error)
-        router.push("/staff-signin")
+        console.error("Error:", error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load dashboard data",
+        })
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    const timer = setTimeout(checkAuth, 100)
-    return () => clearTimeout(timer)
+    checkAuthAndLoadData()
   }, [router, toast])
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4">Loading dashboard...</p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     )
   }
 
   if (!isAuthorized) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Redirecting...</h2>
-          <p className="text-muted-foreground">Please wait while we verify your credentials.</p>
-        </div>
-      </div>
-    )
+    return null
   }
 
   return (
@@ -159,8 +113,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-medium">Total Vaccines Administered</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalVaccines.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+12% from last month</p>
+            <div className="text-2xl font-bold">{data.totalVaccines.toLocaleString()}</div>
           </CardContent>
         </Card>
 
@@ -169,8 +122,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-medium">Active Doctors</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.activeDoctors}</div>
-            <p className="text-xs text-muted-foreground">+2 new this month</p>
+            <div className="text-2xl font-bold">{data.activeDoctors}</div>
           </CardContent>
         </Card>
 
@@ -179,7 +131,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-medium">Upcoming Appointments</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.upcomingAppointments}</div>
+            <div className="text-2xl font-bold">{data.upcomingAppointments}</div>
             <p className="text-xs text-muted-foreground">Next 7 days</p>
           </CardContent>
         </Card>
@@ -189,7 +141,7 @@ export default function AdminDashboard() {
             <CardTitle className="text-sm font-medium">Stock Alerts</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.stockAlerts}</div>
+            <div className="text-2xl font-bold text-red-600">{data.stockAlerts}</div>
             <p className="text-xs text-muted-foreground">Low stock items</p>
           </CardContent>
         </Card>
@@ -199,11 +151,10 @@ export default function AdminDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Vaccine Stock Levels</CardTitle>
-          <p className="text-sm text-muted-foreground">Current inventory status</p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {stockLevels.map((stock) => (
+            {data.stockLevels.map((stock) => (
               <div key={stock.name} className="p-4 border rounded-lg">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-medium">{stock.name}</span>
@@ -242,24 +193,13 @@ export default function AdminDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Recent System Activity</CardTitle>
-          <p className="text-sm text-muted-foreground">Latest updates and actions</p>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {activities.map((activity) => (
+            {data.recentActivities.map((activity) => (
               <div key={activity.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <div
-                    className={`w-2 h-2 rounded-full ${
-                      activity.color === "green"
-                        ? "bg-green-500"
-                        : activity.color === "blue"
-                          ? "bg-blue-500"
-                          : activity.color === "yellow"
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
-                    }`}
-                  ></div>
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                   <div>
                     <p className="font-medium">{activity.type}</p>
                     <p className="text-sm text-muted-foreground">{activity.description}</p>
@@ -268,45 +208,6 @@ export default function AdminDashboard() {
                 <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
               </div>
             ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <p className="text-sm text-muted-foreground">Common administrative tasks</p>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link href="/admin/inventory-management">
-              <Button variant="outline" className="w-full h-20 flex flex-col">
-                <span className="font-medium">Manage Inventory</span>
-                <span className="text-xs text-muted-foreground">Update stock levels</span>
-              </Button>
-            </Link>
-
-            <Link href="/admin/vaccinator-management">
-              <Button variant="outline" className="w-full h-20 flex flex-col">
-                <span className="font-medium">Manage Staff</span>
-                <span className="text-xs text-muted-foreground">Add/edit doctors</span>
-              </Button>
-            </Link>
-
-            <Link href="/admin/patient-oversight">
-              <Button variant="outline" className="w-full h-20 flex flex-col">
-                <span className="font-medium">Patient Oversight</span>
-                <span className="text-xs text-muted-foreground">View all patients</span>
-              </Button>
-            </Link>
-
-            <Link href="/admin/reports">
-              <Button variant="outline" className="w-full h-20 flex flex-col">
-                <span className="font-medium">Generate Reports</span>
-                <span className="text-xs text-muted-foreground">Analytics & insights</span>
-              </Button>
-            </Link>
           </div>
         </CardContent>
       </Card>
