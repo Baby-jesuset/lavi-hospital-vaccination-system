@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
-import { Suspense } from "react"
-import AdminDashboardClientComponent from "./dashboard-client"
+
+// Force dynamic rendering to bypass prerender issues
+export const dynamic = "force-dynamic"
 
 // Define types locally to avoid import issues
 interface DashboardStats {
@@ -33,49 +34,7 @@ interface Activity {
   color: string
 }
 
-// Server Component - handles the page structure
-export default function AdminDashboardPage() {
-  return (
-    <div className="min-h-screen bg-background">
-      <Suspense fallback={<AdminDashboardSkeleton />}>
-        <AdminDashboardClientComponent />
-      </Suspense>
-    </div>
-  )
-}
-
-// Loading skeleton component
-function AdminDashboardSkeleton() {
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="h-8 w-48 bg-gray-200 rounded animate-pulse"></div>
-        <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-6 border rounded-lg">
-            <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mb-2"></div>
-            <div className="h-8 w-16 bg-gray-200 rounded animate-pulse"></div>
-          </div>
-        ))}
-      </div>
-
-      <div className="space-y-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="p-6 border rounded-lg">
-            <div className="h-6 w-48 bg-gray-200 rounded animate-pulse mb-4"></div>
-            <div className="h-32 bg-gray-200 rounded animate-pulse"></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// Client Component - handles the dashboard logic
-function DashboardClientComponent() {
+export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [stats, setStats] = useState<DashboardStats>({
@@ -182,11 +141,25 @@ function DashboardClientComponent() {
   }, [router, toast])
 
   if (isLoading) {
-    return null
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4">Loading dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!isAuthorized) {
-    return null
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Redirecting...</h2>
+          <p className="text-muted-foreground">Please wait while we verify your credentials.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
