@@ -1,0 +1,58 @@
+{
+  "name": "lavi-hospital-vaccination-system",
+  "version": "1.0.0",
+  "description": "A comprehensive vaccination management system for educational purposes",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write .",
+    "setup": "npm install && echo 'Setup complete! Copy .env.example to .env.local and add your Supabase credentials.'"
+  },
+  "dependencies": {
+    "@radix-ui/react-dropdown-menu": "^2.0.6",
+    "lucide-react": "^0.284.0",
+    "next": "^13.5.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.47.0",
+    "zod": "^3.22.4",
+    "@hookform/resolvers": "^3.3.1",
+    "@radix-ui/react-label": "^2.0.2",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-checkbox": "^1.0.4",
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-toast": "^1.1.5",
+    "tslib": "^2.6.2",
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.2",
+    "@types/react": "^18.2.24",
+    "@types/react-dom": "^18.2.8",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.3",
+    "typescript": "^5.2.2",
+    "prettier": "^3.0.3",
+    "@typescript-eslint/eslint-plugin": "^6.7.4",
+    "@typescript-eslint/parser": "^6.7.4",
+    "eslint": "^8.50.0",
+    "eslint-config-next": "^13.5.4"
+  },
+  "keywords": [
+    "healthcare",
+    "vaccination",
+    "management-system",
+    "nextjs",
+    "supabase",
+    "educational",
+    "final-year-project"
+  ],
+  "author": "Final Year Project",
+  "license": "MIT"
+}
