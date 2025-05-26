@@ -75,3 +75,25 @@ export async function signOut() {
     return false
   }
 }
+<<<<<<< HEAD
+=======
+
+/**
+ * Function to create a server client
+ */
+export function createServerClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+
+  return createClient<Database>(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+    },
+    global: {
+      headers: {
+        Accept: "application/json",
+      },
+    },
+  })
+}
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83

@@ -15,7 +15,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+<<<<<<< HEAD
 import { Menu, X, ChevronDown, Bell, Sun, Moon, LogOut, LayoutDashboard, Calendar, FileText, User, Users, Package, ClipboardList, BarChart } from "lucide-react"
+=======
+import { Menu, X, ChevronDown, Bell, Sun, Moon, LogOut } from "lucide-react"
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
@@ -26,7 +30,11 @@ interface DashboardLayoutProps {
   sections: {
     name: string
     href: string
+<<<<<<< HEAD
     icon: string
+=======
+    icon: React.ElementType
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
   }[]
 }
 
@@ -48,6 +56,7 @@ const roleInfo = {
   },
 }
 
+<<<<<<< HEAD
 const iconMap: { [key: string]: React.ElementType } = {
   LayoutDashboardIcon: LayoutDashboard,
   CalendarIcon: Calendar,
@@ -59,6 +68,8 @@ const iconMap: { [key: string]: React.ElementType } = {
   BarChartIcon: BarChart,
 };
 
+=======
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
 export function DashboardLayout({ children, role, sections }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -205,7 +216,11 @@ export function DashboardLayout({ children, role, sections }: DashboardLayoutPro
           ) : (
             <ul className="space-y-1">
               {sections.map((section) => {
+<<<<<<< HEAD
                 const IconComponent = iconMap[section.icon]
+=======
+                const Icon = section.icon
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
                 const isActive = pathname === section.href
 
                 return (
@@ -216,7 +231,11 @@ export function DashboardLayout({ children, role, sections }: DashboardLayoutPro
                         className={cn("w-full justify-start transition-all duration-200", isActive && "font-medium")}
                         onClick={() => setSidebarOpen(false)}
                       >
+<<<<<<< HEAD
                         {IconComponent && <IconComponent className={cn("mr-3 h-4 w-4", isActive ? "text-primary" : "text-muted-foreground")} />}
+=======
+                        <Icon className={cn("mr-3 h-4 w-4", isActive ? "text-primary" : "text-muted-foreground")} />
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
                         {section.name}
                       </Button>
                     </Link>

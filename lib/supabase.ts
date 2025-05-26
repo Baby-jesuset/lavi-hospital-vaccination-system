@@ -5,7 +5,11 @@ import type { Database } from "@/types/database.types"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+<<<<<<< HEAD
 // Create a single instance of the Supabase client
+=======
+// Create a single instance of the Supabase client - this is the main export
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
 
 // Helper function to get the current authenticated user
@@ -63,12 +67,20 @@ export async function getUserRole() {
   }
 }
 
+<<<<<<< HEAD
 // Function to create a server client
+=======
+// Function to create a server client - required export
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
 export function createServerClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
+<<<<<<< HEAD
   return createClient(supabaseUrl, supabaseKey, {
+=======
+  return createClient<Database>(supabaseUrl, supabaseKey, {
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
     auth: {
       persistSession: false,
     },
@@ -79,3 +91,77 @@ export function createServerClient() {
     },
   })
 }
+<<<<<<< HEAD
+=======
+
+// Server-side helper functions using service role key
+export async function getCurrentUserServer() {
+  try {
+    const serverClient = createServerClient()
+    const {
+      data: { user },
+      error,
+    } = await serverClient.auth.getUser()
+
+    if (error) {
+      console.error("Error getting current user (server):", error)
+      return null
+    }
+
+    return user
+  } catch (error) {
+    console.error("Error getting current user (server):", error)
+    return null
+  }
+}
+
+export async function getUserRoleServer() {
+  try {
+    const serverClient = createServerClient()
+    const user = await getCurrentUserServer()
+
+    if (!user) {
+      return null
+    }
+
+    // Check if user is a patient
+    const { data: patient } = await serverClient.from("patients").select("patient_id").eq("auth_id", user.id).single()
+
+    if (patient) {
+      return { role: "patient", id: patient.patient_id }
+    }
+
+    // Check if user is a vaccinator
+    const { data: vaccinator } = await serverClient
+      .from("vaccinators")
+      .select("vaccinator_id")
+      .eq("auth_id", user.id)
+      .single()
+
+    if (vaccinator) {
+      return { role: "doctor", id: vaccinator.vaccinator_id }
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error getting user role (server):", error)
+    return null
+  }
+}
+
+// Helper function to sign out the current user
+export async function signOut() {
+  try {
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      throw error
+    }
+
+    return true
+  } catch (error) {
+    console.error("Error signing out:", error)
+    return false
+  }
+}
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83

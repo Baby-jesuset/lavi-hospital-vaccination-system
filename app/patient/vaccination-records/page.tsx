@@ -10,6 +10,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect } from "react"
 import { useToast } from "@/components/ui/use-toast"
 
+<<<<<<< HEAD
+=======
+// Force dynamic rendering to prevent prerender errors
+export const dynamic = "force-dynamic"
+
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
 export default function VaccinationRecords() {
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()

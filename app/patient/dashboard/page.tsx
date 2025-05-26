@@ -1,4 +1,8 @@
 "use client"
+<<<<<<< HEAD
+=======
+
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -7,6 +11,12 @@ import { CalendarDays, Syringe, Bell, Activity } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect, useState } from "react"
 
+<<<<<<< HEAD
+=======
+// Force dynamic rendering to prevent prerender errors
+export const dynamic = "force-dynamic"
+
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
 export default function PatientDashboard() {
   const [isLoading, setIsLoading] = useState(true)
 

@@ -1,5 +1,10 @@
 "use client"
 
+<<<<<<< HEAD
+=======
+export const dynamic = "force-dynamic"
+
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
 import type React from "react"
 
 import { useState } from "react"

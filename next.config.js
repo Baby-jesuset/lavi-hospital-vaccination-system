@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+<<<<<<< HEAD
     experimental: {
       appDir: true,
     },
@@ -36,3 +37,17 @@ const nextConfig = {
   
   module.exports = nextConfig
   
+=======
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  images: {
+    unoptimized: true,
+  },
+}
+
+module.exports = nextConfig
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83

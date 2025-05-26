@@ -5,6 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { CalendarDays, Syringe, Star, AlertCircle } from "lucide-react"
 
+<<<<<<< HEAD
+=======
+// Force dynamic rendering to prevent prerender errors
+export const dynamic = "force-dynamic"
+
+>>>>>>> 595bee3463104cee9216762a786993bc50791b83
 export default function DoctorDashboard() {
   return (
     <div className="space-y-6">
